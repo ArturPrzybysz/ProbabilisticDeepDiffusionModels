@@ -1,0 +1,12 @@
+#defaults:
+hydra:
+  run:
+    # Output directory for normal runs
+    dir: ./
+batch_size: 128
+n_steps: 500
+max_epochs: 100
+optimizer_config:
+  lr: 3e-4
+defaults:
+  - model_config: base

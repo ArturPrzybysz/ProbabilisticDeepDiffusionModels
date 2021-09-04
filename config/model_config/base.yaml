@@ -1,0 +1,2 @@
+model_config:
+  some_key: "some value"

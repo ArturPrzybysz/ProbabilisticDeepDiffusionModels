@@ -22,7 +22,7 @@ class Engine(pl.LightningModule):
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution
 
-        self.betas = get_betas(b0, bmax, diffusion_steps, mode)
+        self.betas = get_betas(b0, bmax, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
         print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)
@@ -48,7 +48,7 @@ class Engine(pl.LightningModule):
         # TODO get x_t
         x, y = batch
         batch_size = x.shape[0]
-        t = torch.randint(1, self.diffusion_steps, (batch_size,))
+        t = torch.randint(1, self.diffusion_steps, (batch_size,), device=self.device)
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
@@ -58,13 +58,13 @@ class Engine(pl.LightningModule):
         return loss
 
     def generate_image(self, n=1):
-        x_t = torch.randn((n, self.model.in_channels, self.resolution, self.resolution))
+        x_t = torch.randn((n, self.model.in_channels, self.resolution, self.resolution)).to(self.device)
         for t in range(self.diffusion_steps, 0, -1):
             if t > 1:
-                z = torch.randn_like(x_t)
+                z = torch.randn_like(x_t).to(self.device)
             else:
                 z = 0
-            epsilon = self.model(x_t, t * torch.ones(n))
+            epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
             epsilon_scaled = (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]) * epsilon
             sigma = torch.sqrt(self.betas[t-1])
             x_t = (x_t - epsilon_scaled) / self.alphas[t-1] - sigma * z

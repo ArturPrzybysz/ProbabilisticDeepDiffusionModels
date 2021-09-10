@@ -4,7 +4,6 @@ import traceback
 
 from PIL import Image
 
-print(os.getcwd())
 from hydra.utils import get_original_cwd, to_absolute_path
 
 
@@ -22,9 +21,6 @@ wandb.init(project='diffusion', entity='ddpm')
 
 @hydra.main(config_path='../config', config_name="default")
 def run_training(cfg : DictConfig):
-    print("Working directory : {}".format(os.getcwd()))
-    print(f"Orig working directory    : {get_original_cwd()}")
-    print(f"to_absolute_path('config')   : {to_absolute_path('config')}")
 
     print(OmegaConf.to_yaml(cfg))
 

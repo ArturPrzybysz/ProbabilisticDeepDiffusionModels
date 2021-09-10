@@ -22,6 +22,7 @@ class Engine(pl.LightningModule):
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution
 
+        print(self.device)
         self.betas = get_betas(b0, bmax, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
         print(self.alphas)
@@ -36,8 +37,8 @@ class Engine(pl.LightningModule):
 
 
     def get_q_t(self, x, noise, t):
-        return x * self.alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)) \
-               + self.one_min_alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)) * noise
+        return x * self.alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device) \
+               + self.one_min_alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device) * noise
 
     def get_loss(self, predicted_noise, target_noise):
         # TODO: should batch be averaged or summed?
@@ -65,9 +66,9 @@ class Engine(pl.LightningModule):
             else:
                 z = 0
             epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
-            epsilon_scaled = (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]) * epsilon
-            sigma = torch.sqrt(self.betas[t-1])
-            x_t = (x_t - epsilon_scaled) / self.alphas[t-1] - sigma * z
+            epsilon_scaled = (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]).to(self.device) * epsilon
+            sigma = torch.sqrt(self.betas[t-1]).to(self.device)
+            x_t = (x_t - epsilon_scaled) / self.alphas[t-1].to(self.device) - sigma * z
 
         return x_t.detach().cpu().numpy()
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument

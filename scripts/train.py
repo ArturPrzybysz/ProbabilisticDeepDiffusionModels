@@ -24,7 +24,7 @@ def run_training(cfg : DictConfig):
 
     print(OmegaConf.to_yaml(cfg))
 
-    cfg_file = os.path.join(wandb.run.dir, 'config.yaml')
+    cfg_file = os.path.join(wandb.run.dir, 'experiment_config.yaml')
     with open(cfg_file, 'w') as fh:
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)

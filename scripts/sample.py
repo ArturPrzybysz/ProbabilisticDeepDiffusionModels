@@ -32,10 +32,11 @@ def sample(cfg : DictConfig):
     wandb.config.update(cfg)
 
     checkpoint_path = download_file(cfg['run_id'], 'model.ckpt')
-    cfg_path = download_file(cfg['run_id'], 'config.yaml')
+    cfg_path = download_file(cfg['run_id'], 'experiment_config.yaml')
     original_cfg = OmegaConf.load(cfg_path)
 
-    engine = Engine.load_from_checkpoint(checkpoint_path, model_config=original_cfg["model"], **original_cfg["engine"])
+    # engine = Engine.load_from_checkpoint(checkpoint_path, model_config=original_cfg["model"], **original_cfg["engine"])
+    engine = Engine.load_from_checkpoint(checkpoint_path)
     # TODO: load cfg_path
 
     images = engine.generate_image(cfg["num_samples"])

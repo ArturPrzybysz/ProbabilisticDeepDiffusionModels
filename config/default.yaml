@@ -3,21 +3,16 @@ hydra:
   run:
     # Output directory for normal runs
     dir: ./
-data:
-  name: MNIST
-  batch_size: 128
-  transformation_kwargs:
-#    normalize: [[0.5], [0.5]]
-    crop: True
 trainer:
-  max_epochs: 30
-  accumulate_grad_batches: 1
+  max_epochs: 100
+  accumulate_grad_batches: 16
 engine:
   resolution: 32
   optimizer_config:
     lr: 3e-4
-  diffusion_steps: 100
-  b0: 1e-2
-  bmax: 0.1
+  diffusion_steps: 1000
+  b0: 1e-4
+  bmax: 0.02
 defaults:
   - model: unet
+  - data: celeba

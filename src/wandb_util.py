@@ -50,7 +50,7 @@ def download_file(run_id, filename, project="ddpm/diffusion"):
     for file in files:
         if file.name == filename:
             file.download(f"./data/{run_id}/", replace=True)
-            return
+            return f"./data/{run_id}/{filename}"
 
 def download_samples(run_id, project="ddpm/diffusion"):
     api = wandb.Api()

@@ -2,7 +2,7 @@
 name = "deep-diffusion"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Jan Latko s193223@student.dtu.dk", "Artur Przybysz s202384@student.dtu.dk"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

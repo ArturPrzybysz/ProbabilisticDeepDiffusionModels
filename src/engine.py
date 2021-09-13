@@ -60,18 +60,26 @@ class Engine(pl.LightningModule):
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
-    def generate_image(self, n=1):
-        #TODO: split into batches for more images
+    def generate_images(self, n=1, mean_only=False):
         x_t = torch.randn((n, self.model.in_channels, self.resolution, self.resolution)).to(self.device)
         for t in range(self.diffusion_steps, 0, -1):
-            if t > 1:
-                z = torch.randn_like(x_t).to(self.device)
-            else:
-                z = 0
             epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
-            epsilon_scaled = (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]).to(self.device) * epsilon
+            epsilon *= (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]).to(self.device)
             sigma = torch.sqrt(self.betas[t-1]).to(self.device)
-            x_t = (x_t - epsilon_scaled) / self.alphas[t-1].to(self.device) - sigma * z
+
+            x_t -= epsilon
+            x_t /= self.alphas[t - 1].to(self.device)
+
+            if not mean_only:
+                if t > 1:
+                    z = torch.randn_like(x_t).to(self.device)
+                else:
+                    z = 0
+                x_t -= sigma * z
+                del z
+
+            del epsilon
+
 
         return x_t.detach().cpu().numpy()
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument

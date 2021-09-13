@@ -41,6 +41,7 @@ def sample(cfg : DictConfig):
 
     images = engine.generate_image(cfg["num_samples"])
     img_path = os.path.join(wandb.run.dir, 'images')
+    wandb.save('*.png')
     os.mkdir(img_path)
     for i in range(cfg["num_samples"]):
         if cfg["black_white"]:
@@ -48,6 +49,18 @@ def sample(cfg : DictConfig):
         else:
             img = Image.fromarray(images[i], 'RGB')
         img.save(os.path.join(img_path, f'img_{i}.png'))
+    del images
+
+    images = engine.generate_image(cfg["num_samples"], mean_only=True)
+    img_path = os.path.join(wandb.run.dir, 'images_mean')
+    os.mkdir(img_path)
+    for i in range(cfg["num_samples"]):
+        if cfg["black_white"]:
+            img = Image.fromarray(images[i, 0, :, :], 'L')
+        else:
+            img = Image.fromarray(images[i], 'RGB')
+        img.save(os.path.join(img_path, f'img_{i}.png'))
+    del images
 
 if __name__ == '__main__':
     sample()

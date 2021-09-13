@@ -72,10 +72,20 @@ def run_training(cfg : DictConfig):
         # raise e
 
     # generate some images to check if it works
-    images = engine.generate_image(16)
+    images = engine.generate_images(4)
     img_path = os.path.join(wandb.run.dir, 'images')
     os.mkdir(img_path)
-    for i in range(16):
+    for i in range(4):
+        # TODO: handle channels
+        img = Image.fromarray(images[i,0,:,:], 'L')
+        img.save(os.path.join(img_path, f'img_{i}.png'))
+
+
+    del images
+    images = engine.generate_images(4, mean_only=True)
+    img_path = os.path.join(wandb.run.dir, 'images_mean')
+    os.mkdir(img_path)
+    for i in range(4):
         # TODO: handle channels
         img = Image.fromarray(images[i,0,:,:], 'L')
         img.save(os.path.join(img_path, f'img_{i}.png'))

@@ -3,5 +3,5 @@ hydra:
   run:
     # Output directory for normal runs
     dir: ./
-num_samples: 32
+num_samples: 4
 black_white: true

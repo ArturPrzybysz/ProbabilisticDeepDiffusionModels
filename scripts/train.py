@@ -4,9 +4,6 @@ import traceback
 
 from PIL import Image
 
-from hydra.utils import get_original_cwd, to_absolute_path
-
-
 import torch
 import wandb
 import hydra
@@ -15,13 +12,12 @@ from omegaconf import DictConfig, OmegaConf
 
 from src.data import get_dataloader
 from src.engine import Engine
-from src.modules import get_model
 
 wandb.init(project='diffusion', entity='ddpm')
 
-@hydra.main(config_path='../config', config_name="default")
-def run_training(cfg : DictConfig):
 
+@hydra.main(config_path='../config', config_name="default")
+def run_training(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
 
     cfg_file = os.path.join(wandb.run.dir, 'config.yaml')
@@ -31,7 +27,6 @@ def run_training(cfg : DictConfig):
     # TODO: will this work?
     wandb.config.update(cfg)
 
-
     callbacks = []
     callbacks.append(pl.callbacks.EarlyStopping(patience=10, monitor='loss'))
     callbacks.append(pl.callbacks.ModelCheckpoint(dirpath=wandb.run.dir,
@@ -40,14 +35,13 @@ def run_training(cfg : DictConfig):
                                                   verbose=True,
                                                   period=1))
 
-    wandb.save('*.ckpt') # should keep it up to date
+    wandb.save('*.ckpt')  # should keep it up to date
 
     dataloader_train = get_dataloader(download=True,
                                       train=True,
                                       num_workers=4,
                                       pin_memory=True,
                                       **cfg["data"])
-
 
     engine = Engine(cfg["model"], **cfg["engine"])
 
@@ -77,8 +71,9 @@ def run_training(cfg : DictConfig):
     os.mkdir(img_path)
     for i in range(16):
         # TODO: handle channels
-        img = Image.fromarray(images[i,0,:,:], 'L')
+        img = Image.fromarray(images[i, 0, :, :], 'L')
         img.save(os.path.join(img_path, f'img_{i}.png'))
+
 
 if __name__ == '__main__':
     try:

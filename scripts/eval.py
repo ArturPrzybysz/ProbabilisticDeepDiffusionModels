@@ -81,4 +81,9 @@ def run_training(cfg : DictConfig):
         img.save(os.path.join(img_path, f'img_{i}.png'))
 
 if __name__ == '__main__':
-    run_training()
+    try:
+        run_training()
+    except Exception as e:
+        print('Caught exception')
+        print(e)
+        traceback.print_exc(e)

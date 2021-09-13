@@ -15,6 +15,8 @@ class Engine(pl.LightningModule):
     def __init__(self, model_config, optimizer_config, diffusion_steps=100,
                  b0=1e-3, bmax=0.02, mode="linear", resolution=32):
         super(Engine, self).__init__()
+        self.save_hyperparameters() # ??
+
         # create the model here
         self.model = get_model(dict(model_config))
         print(self.model)
@@ -59,6 +61,7 @@ class Engine(pl.LightningModule):
         return loss
 
     def generate_image(self, n=1):
+        #TODO: split into batches for more images
         x_t = torch.randn((n, self.model.in_channels, self.resolution, self.resolution)).to(self.device)
         for t in range(self.diffusion_steps, 0, -1):
             if t > 1:

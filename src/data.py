@@ -25,7 +25,7 @@ def get_dataloader(name, batch_size=128, download=True, train=True,
     transform = get_transformations(train=train, **transformation_kwargs)
 
     if name in SPLIT_NAMES:
-        split = SPLIT_NAMES[train]
+        split = SPLIT_NAMES[name][train]
         dataset = dataset(f'.data/{name.lower()}_data', split=split, download=download,
                     transform=transform)
     else:

@@ -5,6 +5,8 @@ from collections.abc import Iterable
 # this shit seems to be required to download
 from six.moves import urllib
 
+from paths import DATA_DIR
+
 opener = urllib.request.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
 urllib.request.install_opener(opener)
@@ -18,7 +20,7 @@ def get_dataloader(name, batch_size=128, download=True, train=True,
         transformation_kwargs = {}
     transform = get_transformations(train=train, **transformation_kwargs)
 
-    train_dataset = dataset(f'.data/{name.lower()}_data', train=train, download=download,
+    train_dataset = dataset(DATA_DIR / f'{name.lower()}_data', train=train, download=download,
                             transform=transform)
     return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers)
 

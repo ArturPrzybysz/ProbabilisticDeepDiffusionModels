@@ -1,4 +1,3 @@
-
 def mean_flat(tensor):
     """
     Take the mean over all non-batch dimensions.

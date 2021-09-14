@@ -1,4 +1,3 @@
-import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 from collections.abc import Iterable
@@ -10,8 +9,9 @@ opener = urllib.request.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
 urllib.request.install_opener(opener)
 
+
 def get_dataloader(name, batch_size=128, download=True, train=True,
-                 num_workers=4, pin_memory=True, transformation_kwargs=None):
+                   num_workers=4, pin_memory=True, transformation_kwargs=None):
     dataset = getattr(datasets, name)
 
     if transformation_kwargs is None:
@@ -19,7 +19,7 @@ def get_dataloader(name, batch_size=128, download=True, train=True,
     transform = get_transformations(train=train, **transformation_kwargs)
 
     train_dataset = dataset(f'.data/{name.lower()}_data', train=train, download=download,
-                transform=transform)
+                            transform=transform)
     return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers)
 
 

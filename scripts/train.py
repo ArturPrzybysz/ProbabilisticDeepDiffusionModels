@@ -20,8 +20,8 @@ wandb.init(project="diffusion", entity="ddpm")
 def run_training(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
 
-    cfg_file = os.path.join(wandb.run.dir, 'experiment_config.yaml')
-    with open(cfg_file, 'w') as fh:
+    cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
+    with open(cfg_file, "w") as fh:
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
     # TODO: will this work?
@@ -71,17 +71,16 @@ def run_training(cfg: DictConfig):
 
     # generate some images to check if it works
     images = engine.generate_images(4)
-    img_path = os.path.join(wandb.run.dir, 'images')
+    img_path = os.path.join(wandb.run.dir, "images")
     os.mkdir(img_path)
     for i in range(4):
         # TODO: handle channels
-        img = Image.fromarray(images[i,0,:,:], 'L')
-        img.save(os.path.join(img_path, f'img_{i}.png'))
-
+        img = Image.fromarray(images[i, 0, :, :], "L")
+        img.save(os.path.join(img_path, f"img_{i}.png"))
 
     del images
     images = engine.generate_images(4, mean_only=True)
-    img_path = os.path.join(wandb.run.dir, 'images_mean')
+    img_path = os.path.join(wandb.run.dir, "images_mean")
     os.mkdir(img_path)
     for i in range(4):
         # TODO: handle channels
@@ -89,5 +88,5 @@ def run_training(cfg: DictConfig):
         img.save(os.path.join(img_path, f"img_{i}.png"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_training()

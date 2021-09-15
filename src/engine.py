@@ -24,7 +24,7 @@ class Engine(pl.LightningModule):
         resolution=32,
     ):
         super(Engine, self).__init__()
-        self.save_hyperparameters() # ??
+        self.save_hyperparameters()  # ??
 
         # create the model here
         self.model = get_model(dict(model_config))
@@ -77,8 +77,10 @@ class Engine(pl.LightningModule):
         ).to(self.device)
         for t in range(self.diffusion_steps, 0, -1):
             epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
-            epsilon *= (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]).to(self.device)
-            sigma = torch.sqrt(self.betas[t-1]).to(self.device)
+            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+                self.device
+            )
+            sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
 
             x_t -= epsilon
             x_t /= self.alphas[t - 1].to(self.device)
@@ -92,7 +94,6 @@ class Engine(pl.LightningModule):
                 del z
 
             del epsilon
-
 
         return x_t.detach().cpu().numpy()
 

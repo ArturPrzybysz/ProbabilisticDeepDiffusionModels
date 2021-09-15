@@ -1,0 +1,5 @@
+name: MNIST
+batch_size: 128
+transformation_kwargs:
+#    normalize: [[0.5], [0.5]]
+  crop: True

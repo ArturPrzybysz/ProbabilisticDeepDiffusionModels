@@ -11,6 +11,12 @@ opener = urllib.request.build_opener()
 opener.addheaders = [("User-agent", "Mozilla/5.0")]
 urllib.request.install_opener(opener)
 
+SPLIT_NAMES = {
+    "CelebA": {True: "train", False: "valid"},
+    "ImageNet": {True: "train", False: "val"},
+    "SVHN": {True: "train", False: "test"},
+}
+
 
 def get_dataloader(
     name,
@@ -27,13 +33,14 @@ def get_dataloader(
         transformation_kwargs = {}
     transform = get_transformations(train=train, **transformation_kwargs)
 
-    train_dataset = dataset(
-        DATA_DIR / f"{name.lower()}_data",
-        train=train,
-        download=download,
-        transform=transform,
-    )
-    return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers)
+    dir = (DATA_DIR / f"{name.lower()}_data",)
+    if name in SPLIT_NAMES:
+        split = SPLIT_NAMES[name][train]
+        dataset = dataset(dir, split=split, download=download, transform=transform)
+    else:
+        dataset = dataset(dir, train=train, download=download, transform=transform)
+
+    return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
 
 
 def get_transformations(

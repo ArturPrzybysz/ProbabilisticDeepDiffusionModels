@@ -8,12 +8,21 @@ from src.utils import mean_flat
 
 
 def get_betas(b0, bmax, diffusion_steps, mode="linear"):
-    if mode=="linear":
+    if mode == "linear":
         return torch.linspace(b0, bmax, diffusion_steps)
 
+
 class Engine(pl.LightningModule):
-    def __init__(self, model_config, optimizer_config, diffusion_steps=100,
-                 b0=1e-3, bmax=0.02, mode="linear", resolution=32):
+    def __init__(
+        self,
+        model_config,
+        optimizer_config,
+        diffusion_steps=100,
+        b0=1e-3,
+        bmax=0.02,
+        mode="linear",
+        resolution=32,
+    ):
         super(Engine, self).__init__()
         self.save_hyperparameters() # ??
 
@@ -37,10 +46,12 @@ class Engine(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
-
     def get_q_t(self, x, noise, t):
-        return x * self.alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device) \
-               + self.one_min_alphas_hat_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device) * noise
+        return (
+            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            * noise
+        )
 
     def get_loss(self, predicted_noise, target_noise):
         # TODO: should batch be averaged or summed?
@@ -61,7 +72,9 @@ class Engine(pl.LightningModule):
         return loss
 
     def generate_images(self, n=1, mean_only=False):
-        x_t = torch.randn((n, self.model.in_channels, self.resolution, self.resolution)).to(self.device)
+        x_t = torch.randn(
+            (n, self.model.in_channels, self.resolution, self.resolution)
+        ).to(self.device)
         for t in range(self.diffusion_steps, 0, -1):
             epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
             epsilon *= (self.betas[t-1]/self.one_min_alphas_hat_sqrt[t-1]).to(self.device)
@@ -82,6 +95,6 @@ class Engine(pl.LightningModule):
 
 
         return x_t.detach().cpu().numpy()
+
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
     #     raise NotImplementedError
-

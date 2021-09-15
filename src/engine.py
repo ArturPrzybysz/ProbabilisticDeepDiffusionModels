@@ -58,8 +58,6 @@ class Engine(pl.LightningModule):
         return torch.mean(torch.square(target_noise - predicted_noise))
 
     def training_step(self, batch, batch_idx):  # pylint: disable=unused-argument
-        # TODO: sample t
-        # TODO get x_t
         x, y = batch
         batch_size = x.shape[0]
         t = torch.randint(1, self.diffusion_steps, (batch_size,), device=self.device)
@@ -71,12 +69,36 @@ class Engine(pl.LightningModule):
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
-    def generate_images(self, n=1, mean_only=False):
-        x_t = torch.randn(
-            (n, self.model.in_channels, self.resolution, self.resolution)
-        ).to(self.device)
-        for t in range(self.diffusion_steps, 0, -1):
-            epsilon = self.model(x_t, t * torch.ones(n).to(self.device))
+    # def sampling_step
+    #     epsilon = self.model(x, t * torch.ones(x.shape[0]).to(self.device))
+    #     epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+    #         self.device
+    #     )
+    #     sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+    #
+    #     x -= epsilon
+    #     x /= self.alphas[t - 1].to(self.device)
+    #
+    #     if not mean_only:
+    #         if t > 1:
+    #             z = torch.randn_like(x).to(self.device)
+    #         else:
+    #             z = 0
+    #         x -= sigma * z
+    #     return x
+
+    def diffuse_and_reconstruct(self, x0, t):
+        """Will apply forward process to x0 up to t steps and then reconstruct."""
+        batch_size = x0.shape[0]
+        t_vector = t * torch.ones(batch_size).to(self.device)
+        noise = torch.randn_like(x0)
+        x_t = self.get_q_t(x0, noise, t_vector)
+        return self.sample_from_step(x_t, t)
+
+    def sample_from_step(self, x_t, t_start, mean_only=False):
+        batch_size = x_t.shape[0]
+        for t in range(t_start, 0, -1):
+            epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
             epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
                 self.device
             )
@@ -94,8 +116,20 @@ class Engine(pl.LightningModule):
                 del z
 
             del epsilon
+        return x_t
 
-        return x_t.detach().cpu().numpy()
+    def generate_images(self, n=1, minibatch=4, mean_only=False):
+        images = []
+
+        for i in range(np.ceil(n / minibatch).astype(int)):
+            x_t = torch.randn(
+                (n, self.model.in_channels, self.resolution, self.resolution)
+            ).to(self.device)
+
+            x_t = self.sample_from_step(x_t, self.diffusion_steps, mean_only=mean_only)
+            images.append(x_t.detach().cpu().numpy())
+
+        return np.concatenate(images, axis=0)
 
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
     #     raise NotImplementedError

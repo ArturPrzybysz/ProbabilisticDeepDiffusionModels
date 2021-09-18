@@ -87,8 +87,10 @@ class Engine(pl.LightningModule):
     #         x -= sigma * z
     #     return x
 
+    @torch.no_grad()
     def diffuse_and_reconstruct(self, x0, t):
         """Will apply forward process to x0 up to t steps and then reconstruct."""
+        self.eval() # ??
         batch_size = x0.shape[0]
         t_vector = t * torch.ones(batch_size).to(self.device)
         noise = torch.randn_like(x0)
@@ -118,7 +120,9 @@ class Engine(pl.LightningModule):
             del epsilon
         return x_t
 
+    @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False):
+        self.eval()
         images = []
 
         for i in range(np.ceil(n / minibatch).astype(int)):

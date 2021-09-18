@@ -25,7 +25,7 @@ class VisualizationCallback(Callback):
             os.mkdir(img_path)
             images = pl_module.generate_images(self.n_images, mean_only=False)
             for i in range(images.shape[0]):
-                save_img(images[i], os.path.join(img_path, f"img_{i}"))
+                save_img(images[i], os.path.join(img_path, f"img_{i}.png"))
 
     def visualize_reconstructions(self, pl_module):
         #  TODO: get first batch from dataset

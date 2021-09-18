@@ -33,7 +33,7 @@ def get_dataloader(
         transformation_kwargs = {}
     transform = get_transformations(train=train, **transformation_kwargs)
 
-    dir = (DATA_DIR / f"{name.lower()}_data",)
+    dir = DATA_DIR / f"{name.lower()}_data"
     if name in SPLIT_NAMES:
         split = SPLIT_NAMES[name][train]
         dataset = dataset(dir, split=split, download=download, transform=transform)

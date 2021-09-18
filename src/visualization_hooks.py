@@ -9,6 +9,7 @@ class VisualizationCallback(Callback):
     def __init__(self, dataloader, img_path, run_every=None):
         self.dataloader = dataloader
         self.img_path = img_path
+        os.mkdir(self.img_path)
         self.run_every = run_every
         self.n_images = 4
 
@@ -18,11 +19,11 @@ class VisualizationCallback(Callback):
 
     def visualize_random(self, pl_module):
         img_path = os.path.join(
-            self.image_path, f"images_random_{pl_module.current_epoch}"
+            self.img_path, f"images_random_{pl_module.current_epoch}"
         )
         if not os.path.exists(img_path):
             os.mkdir(img_path)
-            images = pl_module.generate_image(self.n_images, mean_only=False)
+            images = pl_module.generate_images(self.n_images, mean_only=False)
             for i in range(images.shape[0]):
                 save_img(images[i], os.path.join(img_path, f"img_{i}"))
 

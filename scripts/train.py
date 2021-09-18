@@ -41,6 +41,7 @@ def run_training(cfg: DictConfig):
     )
 
     wandb.save("*.ckpt")  # should keep it up to date
+    wandb.save("*.png")
 
     dataloader_train = get_dataloader(
         download=True, train=True, num_workers=4, pin_memory=True, **cfg["data"]

@@ -36,9 +36,9 @@ class Engine(pl.LightningModule):
         print(self.device)
         self.betas = get_betas(b0, bmax, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
-        print(self.alphas)
+        # print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)
-        print(self.alphas_hat)
+        # print(self.alphas_hat)
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
         # TODO: precompute sqrts etc.

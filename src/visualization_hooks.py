@@ -44,15 +44,21 @@ class VisualizationCallback(Callback):
             os.mkdir(img_path)
             batch = next(iter(self.dataloader))
             x, y = batch
-            x = x[:self.n_images]
+            x = x[: self.n_images]
 
             for i in range(x.shape[0]):
-                save_img(x[i].detach().cpu().numpy(), os.path.join(img_path, f"img_{i}_0.png"))
+                save_img(
+                    x[i].detach().cpu().numpy(),
+                    os.path.join(img_path, f"img_{i}_0.png"),
+                )
 
             for t in self.ts:
                 images = pl_module.diffuse_and_reconstruct(x, t)
                 for i in range(images.shape[0]):
-                    save_img(images[i].detach().cpu().numpy(), os.path.join(img_path, f"img_{i}_{t}.png"))
+                    save_img(
+                        images[i].detach().cpu().numpy(),
+                        os.path.join(img_path, f"img_{i}_{t}.png"),
+                    )
 
     def on_train_epoch_end(self, trainer, pl_module):
         if self.run_every is not None and pl_module.current_epoch % self.run_every == 0:

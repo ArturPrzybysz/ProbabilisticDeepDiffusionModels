@@ -54,13 +54,14 @@ def run_training(cfg: DictConfig):
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
             run_every=10,
-            ts=[engine.diffusion_steps,
+            ts=[
+                engine.diffusion_steps,
                 int(0.75 * engine.diffusion_steps),
                 int(0.5 * engine.diffusion_steps),
-                int(0.25 * engine.diffusion_steps)]
+                int(0.25 * engine.diffusion_steps),
+            ],
         )
     )
-
 
     logger = pl.loggers.WandbLogger()
     logger.watch(engine)

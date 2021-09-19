@@ -53,11 +53,15 @@ class VisualizationCallback(Callback):
                 )
 
             for t in self.ts:
-                images = pl_module.diffuse_and_reconstruct(x, t)
+                images, images_with_noise = pl_module.diffuse_and_reconstruct(x, t)
                 for i in range(images.shape[0]):
                     save_img(
                         images[i].detach().cpu().numpy(),
                         os.path.join(img_path, f"img_{i}_{t}.png"),
+                    )
+                    save_img(
+                        images_with_noise[i].detach().cpu().numpy(),
+                        os.path.join(img_path, f"img_{i}_{t}_noise.png"),
                     )
 
     def on_train_epoch_end(self, trainer, pl_module):

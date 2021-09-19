@@ -94,7 +94,7 @@ class Engine(pl.LightningModule):
         x0 = x0.to(self.device)
         noise = torch.randn_like(x0)
         x_t = self.get_q_t(x0, noise, t)
-        return self.sample_from_step(x_t.copy(), t), x_t
+        return self.sample_from_step(x_t.detach().clone(), t), x_t
 
     def sample_from_step(self, x_t, t_start, mean_only=False):
         batch_size = x_t.shape[0]

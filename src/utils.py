@@ -1,5 +1,5 @@
 from PIL import Image
-
+import matplotlib.pyplot as plt
 
 def mean_flat(tensor):
     """
@@ -10,7 +10,10 @@ def mean_flat(tensor):
 
 def save_img(x, path):
     if x.shape[0] == 1:
-        img = Image.fromarray(x[0, :, :], "L")
+        # img = Image.fromarray(x[0, :, :], "L")
+        plt.imshow(x[0, :, :], cmap = 'gray')
     else:
-        img = Image.fromarray(x, "RGB")
-    img.save(path)
+        # img = Image.fromarray(x, "RGB")
+        plt.imshow(x)
+    # img.save(path)
+    plt.savefig(path, bbox_inches='tight', pad_inches=0)

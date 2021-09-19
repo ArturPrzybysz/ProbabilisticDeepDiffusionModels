@@ -40,7 +40,9 @@ def get_dataloader(
     else:
         dataset = dataset(dir, train=train, download=download, transform=transform)
 
-    return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
+    return DataLoader(
+        dataset, batch_size=batch_size, num_workers=num_workers, shuffle=train
+    )
 
 
 def get_transformations(

@@ -13,19 +13,20 @@ urllib.request.install_opener(opener)
 
 SPLIT_NAMES = {
     "CelebA": {True: "train", False: "valid"},
+    "Cifar10": {True: "train", False: "valid"},
     "ImageNet": {True: "train", False: "val"},
     "SVHN": {True: "train", False: "test"},
 }
 
 
 def get_dataloader(
-    name,
-    batch_size=128,
-    download=True,
-    train=True,
-    num_workers=4,
-    pin_memory=True,
-    transformation_kwargs=None,
+        name,
+        batch_size=128,
+        download=True,
+        train=True,
+        num_workers=4,
+        pin_memory=True,
+        transformation_kwargs=None,
 ):
     dataset = getattr(datasets, name)
 
@@ -46,7 +47,7 @@ def get_dataloader(
 
 
 def get_transformations(
-    train=True, flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None
+        train=True, flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None
 ):
     transformations = []
 

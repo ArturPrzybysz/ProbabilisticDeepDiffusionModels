@@ -15,4 +15,4 @@ engine:
   bmax: 0.02
 defaults:
   - model: unet_small
-  - data: mnist
+  - data: cifar10

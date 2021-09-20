@@ -66,7 +66,6 @@ class Engine(pl.LightningModule):
         predicted_noise = self.model(x_t, t)
         loss = self.get_loss(predicted_noise, noise)
 
-        # grad_norm = self.compute_grad_norm()
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("total_grad_norm_L2", total_norm, on_step=True, on_epoch=False, prog_bar=False)

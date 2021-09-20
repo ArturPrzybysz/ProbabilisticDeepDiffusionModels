@@ -90,12 +90,11 @@ class Engine(pl.LightningModule):
     @torch.no_grad()
     def diffuse_and_reconstruct(self, x0, t):
         """Will apply forward process to x0 up to t steps and then reconstruct."""
-        self.eval() # ??
-        batch_size = x0.shape[0]
-        t_vector = t * torch.ones(batch_size).to(self.device)
+        self.eval()
+        x0 = x0.to(self.device)
         noise = torch.randn_like(x0)
-        x_t = self.get_q_t(x0, noise, t_vector)
-        return self.sample_from_step(x_t, t)
+        x_t = self.get_q_t(x0, noise, t)
+        return self.sample_from_step(x_t.detach().clone(), t), x_t
 
     def sample_from_step(self, x_t, t_start, mean_only=False):
         batch_size = x_t.shape[0]

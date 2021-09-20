@@ -47,15 +47,21 @@ def run_training(cfg: DictConfig):
         download=True, train=True, num_workers=4, pin_memory=True, **cfg["data"]
     )
 
+    engine = Engine(cfg["model"], **cfg["engine"])
+
     callbacks.append(
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
             run_every=10,
+            ts=[
+                engine.diffusion_steps,
+                int(0.75 * engine.diffusion_steps),
+                int(0.5 * engine.diffusion_steps),
+                int(0.25 * engine.diffusion_steps),
+            ],
         )
     )
-
-    engine = Engine(cfg["model"], **cfg["engine"])
 
     logger = pl.loggers.WandbLogger()
     logger.watch(engine)

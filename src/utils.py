@@ -15,6 +15,6 @@ def save_img(x, path):
         plt.imshow(x[0, :, :], cmap="gray")
     else:
         # img = Image.fromarray(x, "RGB")
-        plt.imshow(x)
+        plt.imshow(x.reshape((32, 32, 3))) #rows, columns, channels
     # img.save(path)
     plt.savefig(path, bbox_inches="tight", pad_inches=0)

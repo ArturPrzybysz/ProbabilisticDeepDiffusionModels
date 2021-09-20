@@ -14,14 +14,14 @@ def get_betas(b0, bmax, diffusion_steps, mode="linear"):
 
 class Engine(pl.LightningModule):
     def __init__(
-        self,
-        model_config,
-        optimizer_config,
-        diffusion_steps=100,
-        b0=1e-3,
-        bmax=0.02,
-        mode="linear",
-        resolution=32,
+            self,
+            model_config,
+            optimizer_config,
+            diffusion_steps=100,
+            b0=1e-3,
+            bmax=0.02,
+            mode="linear",
+            resolution=32,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -48,9 +48,9 @@ class Engine(pl.LightningModule):
 
     def get_q_t(self, x, noise, t):
         return (
-            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            * noise
+                x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                * noise
         )
 
     def get_loss(self, predicted_noise, target_noise):
@@ -66,10 +66,22 @@ class Engine(pl.LightningModule):
         predicted_noise = self.model(x_t, t)
         loss = self.get_loss(predicted_noise, noise)
 
+        # grad_norm = self.compute_grad_norm()
+        grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1000)
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("grad_norm", grad_norm, on_step=True, on_epoch=False, prog_bar=False)
         return loss
 
-    # def sampling_step
+    def compute_grad_norm(self, norm_type=2):
+        total_norm = 0
+        for p in self.model.parameters():
+            param_norm = p.grad.detach().data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        return total_norm
+
+        # def sampling_step
+
     #     epsilon = self.model(x, t * torch.ones(x.shape[0]).to(self.device))
     #     epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
     #         self.device

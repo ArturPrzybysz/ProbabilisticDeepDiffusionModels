@@ -14,5 +14,5 @@ engine:
   b0: 1e-4
   bmax: 0.02
 defaults:
-  - model: unet
-  - data: celeba
+  - model: unet_small
+  - data: mnist

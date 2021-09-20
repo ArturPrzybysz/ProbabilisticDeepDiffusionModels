@@ -14,14 +14,14 @@ def get_betas(b0, bmax, diffusion_steps, mode="linear"):
 
 class Engine(pl.LightningModule):
     def __init__(
-        self,
-        model_config,
-        optimizer_config,
-        diffusion_steps=100,
-        b0=1e-3,
-        bmax=0.02,
-        mode="linear",
-        resolution=32,
+            self,
+            model_config,
+            optimizer_config,
+            diffusion_steps=100,
+            b0=1e-3,
+            bmax=0.02,
+            mode="linear",
+            resolution=32,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -48,9 +48,9 @@ class Engine(pl.LightningModule):
 
     def get_q_t(self, x, noise, t):
         return (
-            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            * noise
+                x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                * noise
         )
 
     def get_loss(self, predicted_noise, target_noise):
@@ -66,10 +66,25 @@ class Engine(pl.LightningModule):
         predicted_noise = self.model(x_t, t)
         loss = self.get_loss(predicted_noise, noise)
 
+        total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("total_grad_norm_L2", total_norm, on_step=True, on_epoch=False, prog_bar=False)
         return loss
 
-    # def sampling_step
+    def compute_grad_norm(self, parameters, norm_type=2):
+        if isinstance(parameters, torch.Tensor):
+            parameters = [parameters]
+        parameters = [p for p in parameters if p.grad is not None]
+        norm_type = float(norm_type)
+        if len(parameters) == 0:
+            return torch.tensor(0.)
+        device = parameters[0].grad.device
+        total_norm = torch.norm(
+            torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+        return total_norm
+
+        # def sampling_step
+
     #     epsilon = self.model(x, t * torch.ones(x.shape[0]).to(self.device))
     #     epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
     #         self.device

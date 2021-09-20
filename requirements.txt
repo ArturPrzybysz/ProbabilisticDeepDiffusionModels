@@ -1,4 +1,0 @@
-wandb
-tqdm
-hydra-core
-pytorch_lightning

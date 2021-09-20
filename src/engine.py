@@ -67,17 +67,21 @@ class Engine(pl.LightningModule):
         loss = self.get_loss(predicted_noise, noise)
 
         # grad_norm = self.compute_grad_norm()
-        grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1000)
+        total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("grad_norm", grad_norm, on_step=True, on_epoch=False, prog_bar=False)
+        self.log("total_grad_norm_L2", total_norm, on_step=True, on_epoch=False, prog_bar=False)
         return loss
 
-    def compute_grad_norm(self, norm_type=2):
-        total_norm = 0
-        for p in self.model.parameters():
-            param_norm = p.grad.detach().data.norm(2)
-            total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
+    def compute_grad_norm(self, parameters, norm_type=2):
+        if isinstance(parameters, torch.Tensor):
+            parameters = [parameters]
+        parameters = [p for p in parameters if p.grad is not None]
+        norm_type = float(norm_type)
+        if len(parameters) == 0:
+            return torch.tensor(0.)
+        device = parameters[0].grad.device
+        total_norm = torch.norm(
+            torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
         return total_norm
 
         # def sampling_step

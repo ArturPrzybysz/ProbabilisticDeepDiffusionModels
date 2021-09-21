@@ -13,8 +13,8 @@ def save_img(x, path):
     if x.shape[0] == 1:
         # img = Image.fromarray(x[0, :, :], "L")
         plt.imshow(x[0, :, :], cmap="gray")
+        plt.savefig(path, bbox_inches="tight", pad_inches=0)
     else:
         img = Image.fromarray(x, "RGB")
         # plt.imshow(x.reshape((32, 32, 3))) #rows, columns, channels
-    img.save(path)
-    # plt.savefig(path, bbox_inches="tight", pad_inches=0)
+        img.save(path)

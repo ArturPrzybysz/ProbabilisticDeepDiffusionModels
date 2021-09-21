@@ -42,6 +42,10 @@ def run_training(cfg: DictConfig):
 
     wandb.save("*.ckpt")  # should keep it up to date
     wandb.save("*.png")
+    wandb.save("images/*.png")
+    wandb.save("images/*/*.png")
+    wandb.save("images/*/*/*.png")
+    wandb.save("images/*/*/*/*.png")
 
     dataloader_train = get_dataloader(
         download=True, train=True, num_workers=4, pin_memory=True, **cfg["data"]
@@ -53,7 +57,7 @@ def run_training(cfg: DictConfig):
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
-            run_every=10,
+            run_every=5,
             ts=[
                 engine.diffusion_steps,
                 int(0.75 * engine.diffusion_steps),

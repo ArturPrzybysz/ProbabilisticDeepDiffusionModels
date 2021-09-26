@@ -14,14 +14,14 @@ def get_betas(b0, bmax, diffusion_steps, mode="linear"):
 
 class Engine(pl.LightningModule):
     def __init__(
-        self,
-        model_config,
-        optimizer_config,
-        diffusion_steps=100,
-        b0=1e-3,
-        bmax=0.02,
-        mode="linear",
-        resolution=32,
+            self,
+            model_config,
+            optimizer_config,
+            diffusion_steps=6,
+            b0=1e-3,
+            bmax=0.02,
+            mode="linear",
+            resolution=32,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -48,9 +48,9 @@ class Engine(pl.LightningModule):
 
     def get_q_t(self, x, noise, t):
         return (
-            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            * noise
+                x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                * noise
         )
 
     def get_loss(self, predicted_noise, target_noise):
@@ -93,25 +93,6 @@ class Engine(pl.LightningModule):
         )
         return total_norm
 
-        # def sampling_step
-
-    #     epsilon = self.model(x, t * torch.ones(x.shape[0]).to(self.device))
-    #     epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-    #         self.device
-    #     )
-    #     sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
-    #
-    #     x -= epsilon
-    #     x /= self.alphas[t - 1].to(self.device)
-    #
-    #     if not mean_only:
-    #         if t > 1:
-    #             z = torch.randn_like(x).to(self.device)
-    #         else:
-    #             z = 0
-    #         x -= sigma * z
-    #     return x
-
     @torch.no_grad()
     def diffuse_and_reconstruct(self, x0, t):
         """Will apply forward process to x0 up to t steps and then reconstruct."""
@@ -121,13 +102,20 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t)
         return self.sample_from_step(x_t.detach().clone(), t), x_t
 
+    @torch.no_grad()
+    def diffuse_and_reconstruct_grid(self, x0, t_start, steps_to_return):
+        """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
+        self.eval()
+        x0 = x0.to(self.device)
+        noise = torch.randn_like(x0)
+        x_t = self.get_q_t(x0, noise, t_start)
+        return self.sample_from_multiple_steps(x_t.detach().clone(), t_start, steps_to_return), x_t
+
     def sample_from_step(self, x_t, t_start, mean_only=False):
         batch_size = x_t.shape[0]
         for t in range(t_start, 0, -1):
             epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
-            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-                self.device
-            )
+            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
             sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
 
             x_t -= epsilon
@@ -143,6 +131,37 @@ class Engine(pl.LightningModule):
 
             del epsilon
         return x_t
+
+    def sample_from_multiple_steps(self, x_t, t_start, steps_to_return, mean_only=False):
+        batch_size = x_t.shape[0]
+        step_count = len(steps_to_return)
+        image_shape = x_t.shape[1:]
+
+        output = torch.zeros((batch_size, step_count) + image_shape)
+        current_step_idx = 0
+
+        for t in range(t_start, 0, -1):
+            epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
+            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
+            sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+
+            x_t -= epsilon
+            x_t /= self.alphas[t - 1].to(self.device)
+
+            if not mean_only:
+                if t > 1:
+                    z = torch.randn_like(x_t).to(self.device)
+                else:
+                    z = 0
+                x_t -= sigma * z
+                del z
+
+            if t in steps_to_return:
+                output[:, current_step_idx] = x_t
+                current_step_idx += 1
+            del epsilon
+
+        return output
 
     @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False):

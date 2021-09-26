@@ -10,7 +10,7 @@ engine:
   resolution: 32
   optimizer_config:
     lr: 3e-4
-  diffusion_steps: 1000
+  diffusion_steps: 100
   b0: 1e-4
   bmax: 0.02
 defaults:

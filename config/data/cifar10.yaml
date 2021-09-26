@@ -1,3 +1,3 @@
 name: CIFAR10
-batch_size: 128
+batch_size: 6
 transformation_kwargs: {}

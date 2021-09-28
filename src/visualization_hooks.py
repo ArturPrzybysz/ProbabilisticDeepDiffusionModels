@@ -14,7 +14,7 @@ class VisualizationCallback(Callback):
         os.mkdir(self.img_path)
         self.run_every = run_every
         self.n_images = 4
-        self.ts = ts
+        self.ts = list(sorted(ts))
 
     def run_visualizations(self, pl_module):
         # self.visualize_random(pl_module)
@@ -68,7 +68,7 @@ class VisualizationCallback(Callback):
 
     def visualize_reconstructions_grid(self, pl_module):
         img_path = os.path.join(
-            self.img_path, f"images_reconstruct_{pl_module.current_epoch}"
+            self.img_path, f"images_grid_{pl_module.current_epoch}"
         )
         image_count, step_count, image_shape, channels, width, height, target_image_shape = (None,) * 7
 
@@ -90,9 +90,9 @@ class VisualizationCallback(Callback):
                 channels = image_shape[0]
                 width = image_shape[1]
                 height = image_shape[2]
-                target_image_shape = (height, width, channels)
+                # target_image_shape = (height, width, channels)
 
-                image_grid = np.ones((height * step_count, width * image_count, channels))
+                # image_grid = np.ones((height * step_count, width * image_count, channels))
                 # image_grid has following shape:
                 # batch_size (different x_0's),
                 # step_count (steps_len),
@@ -111,27 +111,39 @@ class VisualizationCallback(Callback):
             for img_idx in range(image_count):
                 image_grid = np.ones((height * step_count, width * (step_count + 2), channels))
 
-                for t_start_idx in range(len(self.ts)):
-                    images, noisy_images, x0 = t_start_to_images[self.ts[t_start_idx]]
-                    print("x0.shape", x0.shape)
-                    noisy_img = noisy_images[img_idx].reshape(target_image_shape)
+                for t_start_idx, t in enumerate(self.ts):
+                    start_grid_col_nr = len(self.ts) - t_start_idx - 1
+
+                    images, noisy_images, x0 = t_start_to_images[t]
+
                     source_img = model_output_to_image_numpy(x0[img_idx].detach().cpu().numpy())
+                    noisy_img = model_output_to_image_numpy(
+                        noisy_images[img_idx].detach().cpu().numpy())
 
-                    image_grid[height * t_start_idx: height * (t_start_idx + 1),
-                    width * t_start_idx: width * (t_start_idx + 1), :] = noisy_img
-
+                    image_grid[height * (t_start_idx):height * (t_start_idx + 1),
+                    width * start_grid_col_nr: width * (start_grid_col_nr + 1), :] \
+                        = noisy_img
+                    #
                     image_grid[height * t_start_idx: height * (t_start_idx + 1),
                     width * (step_count + 1): width * (step_count + 2), :] = source_img
 
-                    for step in range(step_count):
-                        proper_img = model_output_to_image_numpy(images[img_idx, step].detach().cpu().numpy())
-
-                        image_grid[height * t_start_idx: height * (t_start_idx + 1),
-                        width * (t_start_idx + 1): width * (t_start_idx + 2), :] \
-                            = proper_img
+                    for step in range(step_count - t_start_idx - 1, step_count):
+                        img_to_display = model_output_to_image_numpy(
+                            images[img_idx, step_count - step - 1].detach().cpu().numpy())
+                        print("step", step, "t_start_idx", t_start_idx, "step_count", step_count)
+                        l_border_idx = len(self.ts) - step + start_grid_col_nr
+                        image_grid \
+                            [height * (t_start_idx):height * (t_start_idx + 1),
+                        width * (l_border_idx): width * (l_border_idx + 1), :] \
+                            = img_to_display
 
                 plt.imshow(image_grid)
-                plt.show()
+                plt.xticks(np.arange(0, (step_count + 2)) * width + width // 2,
+                           ["q"] + self.ts + ["$x_0$"])
+                plt.xlabel("Denosing step")
+                plt.yticks(np.arange(0, step_count) * height + height // 2)
+                path = os.path.join(img_path, f"image_{img_idx}_epoch_{pl_module.current_epoch}.png")
+                plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
     def on_train_epoch_end(self, trainer, pl_module):
         if self.run_every is not None and pl_module.current_epoch % self.run_every == 0:

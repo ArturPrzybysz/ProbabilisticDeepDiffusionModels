@@ -3,7 +3,6 @@ import os
 import traceback
 
 import numpy as np
-from PIL import Image
 
 import torch
 import wandb
@@ -58,8 +57,8 @@ def run_training(cfg: DictConfig):
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
-            run_every=5,
-            ts=[int(ratio * engine.diffusion_steps) for ratio in np.linspace(0, 1, num=3)],
+            run_every=3,
+            ts=[int(ratio * engine.diffusion_steps) for ratio in np.linspace(0, 1, num=12)[1:-1]],
         )
     )
 
@@ -72,8 +71,8 @@ def run_training(cfg: DictConfig):
         logger=logger,
         default_root_dir="training/logs",
         gpus=gpus,
-        limit_train_batches=10,
-        limit_test_batches=1,
+        # limit_train_batches=10,
+        # limit_test_batches=1,
         **cfg["trainer"],
     )
 

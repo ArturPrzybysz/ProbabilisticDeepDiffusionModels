@@ -24,7 +24,7 @@ class Engine(pl.LightningModule):
             optimizer_config,
             diffusion_steps=1000,
             beta_start=None,
-            beta_stop=None,
+            beta_end=None,
             mode="linear",
             resolution=32,
             clip_while_generating=True,
@@ -42,7 +42,7 @@ class Engine(pl.LightningModule):
         self.resolution = resolution
 
         print(self.device)
-        self.betas = get_betas(beta_start, beta_stop, diffusion_steps, mode).to(self.device)
+        self.betas = get_betas(beta_start, beta_end, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
         # print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)

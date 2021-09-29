@@ -1,11 +1,11 @@
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 from collections.abc import Iterable
-
 # this shit seems to be required to download
 from six.moves import urllib
 
 from paths import DATA_DIR
+import numpy as np
 
 opener = urllib.request.build_opener()
 opener.addheaders = [("User-agent", "Mozilla/5.0")]
@@ -18,15 +18,21 @@ SPLIT_NAMES = {
     "SVHN": {True: "train", False: "test"},
 }
 
+NORMALIZATIONS = {
+    'cifar': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    'mnist': ((0.5,), (0.5,)),
+    'oenone': ((0.5,0.5,0.5), (0.5,0.5,0.5)),
+}
+
 
 def get_dataloader(
-        name,
-        batch_size=128,
-        download=True,
-        train=True,
-        num_workers=4,
-        pin_memory=True,
-        transformation_kwargs=None,
+    name,
+    batch_size=128,
+    download=True,
+    train=True,
+    num_workers=4,
+    pin_memory=True,
+    transformation_kwargs=None,
 ):
     dataset = getattr(datasets, name)
 
@@ -47,7 +53,7 @@ def get_dataloader(
 
 
 def get_transformations(
-        train=True, flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None
+    train=True, flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None
 ):
     transformations = []
 
@@ -60,11 +66,41 @@ def get_transformations(
     # to tensor
     transformations.append(transforms.ToTensor())
 
-    if normalize == "cifar":
+    if normalize is not None:
+        if isinstance(normalize, str):
+            mean, std = NORMALIZATIONS[normalize]
+        elif isinstance(normalize, Iterable):
+            mean, std = normalize
+        else:
+            raise ValueError(f'Wrong normalization: {normalize}')
+
         transformations.append(
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            transforms.Normalize(mean, std)
         )
-    elif isinstance(normalize, Iterable):
-        transformations.append(transforms.Normalize(normalize[0], normalize[1]))
 
     return transforms.Compose(transformations)
+
+def unnormalize(x, normalize=None, clip=False, channel_dim=0):
+    """ Reverts data normalization and clips
+    """
+    if normalize is not None:
+        if isinstance(normalize, str):
+            mean, std = NORMALIZATIONS[normalize]
+        elif isinstance(normalize, Iterable):
+            mean, std = normalize
+        else:
+            raise ValueError(f'Wrong normalization: {normalize}')
+
+        norm_shape = [1] * len(x.shape)
+        channels = x.shape[channel_dim]
+        norm_shape[channel_dim] = channels
+        mean = np.array(mean).reshape(norm_shape)
+        std = np.array(std).reshape(norm_shape)
+        x = x * std + mean
+
+    if clip:
+        return np.clip(x, 0, 1)
+    else:
+        return x
+
+

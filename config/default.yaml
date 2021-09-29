@@ -5,7 +5,7 @@ hydra:
     dir: ./
 trainer:
   max_epochs: 100
-  accumulate_grad_batches: 16
+  accumulate_grad_batches: 1
 engine:
   resolution: 32
   optimizer_config:
@@ -14,5 +14,5 @@ engine:
   b0: 1e-4
   bmax: 0.02
 defaults:
-  - model: unet_small
-  - data: cifar10
+  - model: unet_small_grey
+  - data: mnist

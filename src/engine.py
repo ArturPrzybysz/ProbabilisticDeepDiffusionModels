@@ -17,7 +17,7 @@ class Engine(pl.LightningModule):
             self,
             model_config,
             optimizer_config,
-            diffusion_steps=100,
+            diffusion_steps=6,
             b0=1e-3,
             bmax=0.02,
             mode="linear",
@@ -68,7 +68,13 @@ class Engine(pl.LightningModule):
 
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("total_grad_norm_L2", total_norm, on_step=True, on_epoch=False, prog_bar=False)
+        self.log(
+            "total_grad_norm_L2",
+            total_norm,
+            on_step=True,
+            on_epoch=False,
+            prog_bar=False,
+        )
         return loss
 
     def compute_grad_norm(self, parameters, norm_type=2):
@@ -77,30 +83,15 @@ class Engine(pl.LightningModule):
         parameters = [p for p in parameters if p.grad is not None]
         norm_type = float(norm_type)
         if len(parameters) == 0:
-            return torch.tensor(0.)
+            return torch.tensor(0.0)
         device = parameters[0].grad.device
         total_norm = torch.norm(
-            torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+            torch.stack(
+                [torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]
+            ),
+            norm_type,
+        )
         return total_norm
-
-        # def sampling_step
-
-    #     epsilon = self.model(x, t * torch.ones(x.shape[0]).to(self.device))
-    #     epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-    #         self.device
-    #     )
-    #     sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
-    #
-    #     x -= epsilon
-    #     x /= self.alphas[t - 1].to(self.device)
-    #
-    #     if not mean_only:
-    #         if t > 1:
-    #             z = torch.randn_like(x).to(self.device)
-    #         else:
-    #             z = 0
-    #         x -= sigma * z
-    #     return x
 
     @torch.no_grad()
     def diffuse_and_reconstruct(self, x0, t):
@@ -111,28 +102,56 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t)
         return self.sample_from_step(x_t.detach().clone(), t), x_t
 
-    def sample_from_step(self, x_t, t_start, mean_only=False):
-        batch_size = x_t.shape[0]
-        for t in range(t_start, 0, -1):
-            epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
-            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-                self.device
-            )
-            sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+    @torch.no_grad()
+    def diffuse_and_reconstruct_grid(self, x0, t_start, steps_to_return):
+        """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
+        self.eval()
+        x0 = x0.to(self.device)
+        noise = torch.randn_like(x0)
+        x_t = self.get_q_t(x0, noise, t_start)
+        return self.sample_from_multiple_steps(x_t.detach().clone(), t_start, steps_to_return), x_t
 
-            x_t -= epsilon
-            x_t /= self.alphas[t - 1].to(self.device)
+    def denoising_step(self, x_t, t, mean_only=False):
+        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
+        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
+        sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
 
-            if not mean_only:
-                if t > 1:
-                    z = torch.randn_like(x_t).to(self.device)
-                else:
-                    z = 0
-                x_t -= sigma * z
-                del z
+        x_t -= epsilon
+        x_t /= self.alphas[t - 1].to(self.device)
 
-            del epsilon
+        if not mean_only:
+            if t > 1:
+                z = torch.randn_like(x_t).to(self.device)
+            else:
+                z = 0
+            x_t -= sigma * z
         return x_t
+
+    def sample_from_step(self, x_t, t_start, mean_only=False):
+        for t in range(t_start, 0, -1):
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
+        return x_t
+
+    def sample_from_multiple_steps(self, x_t, t_start, steps_to_return, mean_only=False):
+        """ Returns shape [B, STEPS, C, W, H]
+        """
+        assert all(t < t_start for t in steps_to_return)
+
+        batch_size = x_t.shape[0]
+        step_count = len(steps_to_return)
+        image_shape = x_t.shape[1:]
+
+        output = torch.zeros((batch_size, step_count) + image_shape)
+        current_step_idx = 0
+
+        for t in range(t_start, 0, -1):
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
+
+            if t in steps_to_return:
+                output[:, current_step_idx] = x_t
+                current_step_idx += 1
+
+        return output
 
     @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False):
@@ -148,6 +167,25 @@ class Engine(pl.LightningModule):
             images.append(x_t.detach().cpu().numpy())
 
         return np.concatenate(images, axis=0)
+
+    @torch.no_grad()
+    def generate_images_grid(self, steps_to_return, n=1, minibatch=4, mean_only=False):
+        self.eval()
+        starting_noise = []
+        images = []
+
+        for i in range(np.ceil(n / minibatch).astype(int)):
+            x_t = torch.randn(
+                (n, self.model.in_channels, self.resolution, self.resolution)
+            ).to(self.device)
+            starting_noise.append(x_t.detach().cpu().numpy())
+
+            x_t = self.sample_from_multiple_steps(x_t, self.diffusion_steps,
+                                                  steps_to_return=steps_to_return,
+                                                  mean_only=mean_only)
+            images.append(x_t.detach().cpu().numpy())
+
+        return np.concatenate(starting_noise, axis=0), np.concatenate(images, axis=0)
 
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
     #     raise NotImplementedError

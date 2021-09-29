@@ -4,23 +4,26 @@ import numpy as np
 from matplotlib import pyplot as plt
 from pytorch_lightning import Callback
 
+from src.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
 
 
 class VisualizationCallback(Callback):
-    def __init__(self, dataloader, img_path, ts, run_every=None):
+    def __init__(self, dataloader, img_path, ts, run_every=None, normalization=None):
         self.dataloader = dataloader
         self.img_path = img_path
         os.mkdir(self.img_path)
         self.run_every = run_every
         self.n_images = 4
         self.ts = list(sorted(ts))
+        self.normalization = normalization
 
     def run_visualizations(self, pl_module):
-        # self.visualize_random(pl_module)
-        # self.visualize_random(pl_module, mean_only=True)
-        # self.visualize_reconstructions(pl_module)
+        self.visualize_random(pl_module)
+        self.visualize_random_grid(pl_module)
+        self.visualize_random(pl_module, mean_only=True)
         self.visualize_reconstructions_grid(pl_module)
+        # self.visualize_reconstructions(pl_module)
 
     def visualize_random(self, pl_module, mean_only=False):
         if mean_only:
@@ -36,7 +39,60 @@ class VisualizationCallback(Callback):
             os.mkdir(img_path)
             images = pl_module.generate_images(self.n_images, mean_only=mean_only)
             for i in range(images.shape[0]):
-                save_img(images[i], os.path.join(img_path, f"img_{i}.png"))
+                img = unnormalize(images[i], normalize=self.normalization, clip=True, channel_dim=0)
+                save_img(img, os.path.join(img_path, f"img_{i}.png"))
+
+
+    def visualize_random_grid(self, pl_module, mean_only=False):
+        img_path = os.path.join(
+            self.img_path, f"images_random_grid_{pl_module.current_epoch}"
+        )
+        if not os.path.exists(img_path):
+            os.mkdir(img_path)
+            noise, images = pl_module.generate_images_grid(steps_to_return=self.ts[:-1] + [1], n=self.n_images, mean_only=mean_only)
+
+            channels = images.shape[2]
+            width = images.shape[3]
+            height = images.shape[4]
+            step_count = len(self.ts)
+            image_grid = np.ones((height * self.n_images, width * (step_count + 1), channels))
+
+            # iterate through images
+            for img_idx in range(self.n_images):
+                # starting noise
+                noisy_img = model_output_to_image_numpy(noise[img_idx])
+                image_grid[
+                    height * (img_idx):height * (img_idx + 1),
+                    0 : width,
+                    :
+                ] = noisy_img
+
+                # all the denoising steps
+                for step in range(0, step_count):
+                    img_to_display = model_output_to_image_numpy(
+                        images[img_idx, step_count - step - 1])
+
+                    image_grid[
+                    height * (img_idx):height * (img_idx + 1),
+                    width * (step + 1): width * (step + 2),
+                    :
+                    ] = img_to_display
+
+            # plotting stuff
+            img = unnormalize(image_grid, normalize=self.normalization, clip=True,
+                              channel_dim=-1)
+            if channels == 1:
+                plt.imshow(img, cmap="gray")
+            else:
+                plt.imshow(img)
+
+            plt.xticks(np.arange(0, (step_count + 1)) * width + width // 2,
+                       list(reversed(self.ts)) + ['0'])
+            plt.xlabel("Denoising step")
+
+            # save image
+            path = os.path.join(img_path, f"epoch_{pl_module.current_epoch}.png")
+            plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
     def visualize_reconstructions(self, pl_module):
         img_path = os.path.join(
@@ -57,12 +113,14 @@ class VisualizationCallback(Callback):
             for t in self.ts:
                 images, images_with_noise = pl_module.diffuse_and_reconstruct(x, t)
                 for i in range(images.shape[0]):
+                    img = unnormalize(images[i].detach().cpu().numpy(), normalize=self.normalization, clip=True, channel_dim=0)
                     save_img(
-                        images[i].detach().cpu().numpy(),
+                        img,
                         os.path.join(img_path, f"img_{i}_{t}.png"),
                     )
+                    img = unnormalize(images_with_noise[i].detach().cpu().numpy(), normalize=self.normalization, clip=True, channel_dim=0)
                     save_img(
-                        images_with_noise[i].detach().cpu().numpy(),
+                        img,
                         os.path.join(img_path, f"img_{i}_{t}_noise.png"),
                     )
 
@@ -70,7 +128,7 @@ class VisualizationCallback(Callback):
         img_path = os.path.join(
             self.img_path, f"images_grid_{pl_module.current_epoch}"
         )
-        image_count, step_count, image_shape, channels, width, height, target_image_shape = (None,) * 7
+        # image_count, step_count, image_shape, channels, width, height, target_image_shape = (None,) * 7
 
         if not os.path.exists(img_path):
             os.mkdir(img_path)
@@ -78,70 +136,78 @@ class VisualizationCallback(Callback):
             x, _ = batch
             x = x[: self.n_images]
 
+            channels = x.shape[1]
+            width = x.shape[2]
+            height = x.shape[3]
+            step_count = len(self.ts)
+
             t_start_to_images = {}
-            for t_start in self.ts:
-                images, noisy_images = pl_module.diffuse_and_reconstruct_grid(x, t_start, self.ts)
+
+            # iterate through noise steps
+            for i, t_start in enumerate(self.ts):
+                # images: (B, Ts, C, W, H)
+                # noisy_images: (B, C, W, H)
+                images, noisy_images = pl_module.diffuse_and_reconstruct_grid(x, t_start, self.ts[:i] + [1])
                 t_start_to_images[t_start] = (images, noisy_images, x)
 
-                image_count = images.shape[0]
-                step_count = images.shape[1]
-                image_shape = images.shape[2:]
-
-                channels = image_shape[0]
-                width = image_shape[1]
-                height = image_shape[2]
-                # target_image_shape = (height, width, channels)
-
-                # image_grid = np.ones((height * step_count, width * image_count, channels))
-                # image_grid has following shape:
-                # batch_size (different x_0's),
-                # step_count (steps_len),
-                # image_shape (2D + 1 or 3 channels)
-
-                # for step in range(step_count):
-                #     for img_idx in range(image_count):
-                #         proper_img = model_output_to_image_numpy(images[img_idx, step].detach().cpu().numpy())
-                #
-                #         image_grid[width * step: width * (step + 1), height * img_idx: height * (img_idx + 1), :] \
-                #             = proper_img
-                #
-                # plt.imshow(image_grid)
-                # plt.show()
-
-            for img_idx in range(image_count):
+            # iterate through images
+            for img_idx in range(self.n_images):
+                # initialize empty grid
                 image_grid = np.ones((height * step_count, width * (step_count + 2), channels))
 
-                for t_start_idx, t in enumerate(self.ts):
-                    start_grid_col_nr = len(self.ts) - t_start_idx - 1
+                # iterate through noise steps
+                for t_start_idx, t_start in enumerate(self.ts):
+                    # calculate column index
+                    start_grid_col_nr = step_count - t_start_idx - 1
 
-                    images, noisy_images, x0 = t_start_to_images[t]
-
+                    # convert and reshape images
+                    images, noisy_images, x0 = t_start_to_images[t_start]
                     source_img = model_output_to_image_numpy(x0[img_idx].detach().cpu().numpy())
                     noisy_img = model_output_to_image_numpy(
                         noisy_images[img_idx].detach().cpu().numpy())
 
-                    image_grid[height * (t_start_idx):height * (t_start_idx + 1),
-                    width * start_grid_col_nr: width * (start_grid_col_nr + 1), :] \
-                        = noisy_img
-                    #
-                    image_grid[height * t_start_idx: height * (t_start_idx + 1),
-                    width * (step_count + 1): width * (step_count + 2), :] = source_img
+                    # starting image with noise
+                    image_grid[
+                        height * (t_start_idx):height * (t_start_idx + 1),
+                        width * start_grid_col_nr: width * (start_grid_col_nr + 1),
+                        :
+                    ] = noisy_img
+                    # source image without noise
+                    image_grid[
+                        height * t_start_idx: height * (t_start_idx + 1),
+                        width * (step_count + 1): width * (step_count + 2),
+                        :
+                    ] = source_img
 
+                    # all the denoising steps
                     for step in range(step_count - t_start_idx - 1, step_count):
                         img_to_display = model_output_to_image_numpy(
                             images[img_idx, step_count - step - 1].detach().cpu().numpy())
-                        print("step", step, "t_start_idx", t_start_idx, "step_count", step_count)
-                        l_border_idx = len(self.ts) - step + start_grid_col_nr
-                        image_grid \
-                            [height * (t_start_idx):height * (t_start_idx + 1),
-                        width * (l_border_idx): width * (l_border_idx + 1), :] \
-                            = img_to_display
 
-                plt.imshow(image_grid)
+                        l_border_idx = len(self.ts) - step + start_grid_col_nr
+                        image_grid[
+                            height * (t_start_idx):height * (t_start_idx + 1),
+                            width * (l_border_idx): width * (l_border_idx + 1),
+                            :
+                        ] = img_to_display
+
+                # plotting stuff
+                img = unnormalize(image_grid, normalize=self.normalization, clip=True,
+                                  channel_dim=-1)
+                if channels == 1:
+                    plt.imshow(img, cmap="gray")
+                else:
+                    plt.imshow(img)
+
                 plt.xticks(np.arange(0, (step_count + 2)) * width + width // 2,
-                           ["q"] + self.ts + ["$x_0$"])
-                plt.xlabel("Denosing step")
-                plt.yticks(np.arange(0, step_count) * height + height // 2)
+                           list(reversed(self.ts)) + ['0', "$x_0$"])
+                plt.xlabel("Denoising step")
+                plt.yticks(np.arange(0, step_count) * height + height // 2,
+                           self.ts
+                           )
+                plt.ylabel("Starting noise step")
+
+                # save image
                 path = os.path.join(img_path, f"image_{img_idx}_epoch_{pl_module.current_epoch}.png")
                 plt.savefig(path, bbox_inches="tight", pad_inches=0)
 

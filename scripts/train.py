@@ -52,13 +52,15 @@ def run_training(cfg: DictConfig):
     )
 
     engine = Engine(cfg["model"], **cfg["engine"])
-
+    print([int(ratio * engine.diffusion_steps) for ratio in np.linspace(0, 1, num=12)[1:]])
+    print()
     callbacks.append(
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
             run_every=3,
-            ts=[int(ratio * engine.diffusion_steps) for ratio in np.linspace(0, 1, num=12)[1:-1]],
+            ts=np.linspace(0, engine.diffusion_steps, num=12, dtype=int)[1:],
+            normalization=cfg["data"]["transformation_kwargs"].get('normalize')
         )
     )
 

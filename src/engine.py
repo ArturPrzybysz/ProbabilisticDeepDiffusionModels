@@ -111,28 +111,32 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t_start)
         return self.sample_from_multiple_steps(x_t.detach().clone(), t_start, steps_to_return), x_t
 
+    def denoising_step(self, x_t, t, mean_only=False):
+        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
+        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
+        sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+
+        x_t -= epsilon
+        x_t /= self.alphas[t - 1].to(self.device)
+
+        if not mean_only:
+            if t > 1:
+                z = torch.randn_like(x_t).to(self.device)
+            else:
+                z = 0
+            x_t -= sigma * z
+        return x_t
+
     def sample_from_step(self, x_t, t_start, mean_only=False):
-        batch_size = x_t.shape[0]
         for t in range(t_start, 0, -1):
-            epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
-            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
-            sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
-
-            x_t -= epsilon
-            x_t /= self.alphas[t - 1].to(self.device)
-
-            if not mean_only:
-                if t > 1:
-                    z = torch.randn_like(x_t).to(self.device)
-                else:
-                    z = 0
-                x_t -= sigma * z
-                del z
-
-            del epsilon
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
         return x_t
 
     def sample_from_multiple_steps(self, x_t, t_start, steps_to_return, mean_only=False):
+        """ Returns shape [B, STEPS, C, W, H]
+        """
+        assert all(t < t_start for t in steps_to_return)
+
         batch_size = x_t.shape[0]
         step_count = len(steps_to_return)
         image_shape = x_t.shape[1:]
@@ -141,25 +145,11 @@ class Engine(pl.LightningModule):
         current_step_idx = 0
 
         for t in range(t_start, 0, -1):
-            epsilon = self.model(x_t, t * torch.ones(batch_size).to(self.device))
-            epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
-            sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
-
-            x_t -= epsilon
-            x_t /= self.alphas[t - 1].to(self.device)
-
-            if not mean_only:
-                if t > 1:
-                    z = torch.randn_like(x_t).to(self.device)
-                else:
-                    z = 0
-                x_t -= sigma * z
-                del z
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
 
             if t in steps_to_return:
                 output[:, current_step_idx] = x_t
                 current_step_idx += 1
-            del epsilon
 
         return output
 
@@ -177,6 +167,25 @@ class Engine(pl.LightningModule):
             images.append(x_t.detach().cpu().numpy())
 
         return np.concatenate(images, axis=0)
+
+    @torch.no_grad()
+    def generate_images_grid(self, steps_to_return, n=1, minibatch=4, mean_only=False):
+        self.eval()
+        starting_noise = []
+        images = []
+
+        for i in range(np.ceil(n / minibatch).astype(int)):
+            x_t = torch.randn(
+                (n, self.model.in_channels, self.resolution, self.resolution)
+            ).to(self.device)
+            starting_noise.append(x_t.detach().cpu().numpy())
+
+            x_t = self.sample_from_multiple_steps(x_t, self.diffusion_steps,
+                                                  steps_to_return=steps_to_return,
+                                                  mean_only=mean_only)
+            images.append(x_t.detach().cpu().numpy())
+
+        return np.concatenate(starting_noise, axis=0), np.concatenate(images, axis=0)
 
     # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
     #     raise NotImplementedError

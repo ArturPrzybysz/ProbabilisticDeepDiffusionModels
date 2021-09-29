@@ -1,3 +1,4 @@
 name: CIFAR10
-batch_size: 6
-transformation_kwargs: {}
+batch_size: 128
+transformation_kwargs:
+  normalize: cifar

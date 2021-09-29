@@ -1,6 +1,6 @@
 from PIL import Image
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 def mean_flat(tensor):
     """
@@ -11,16 +11,12 @@ def mean_flat(tensor):
 
 def save_img(x, path):
     x = x.transpose(1, 2, 0)
-    if x.shape[0] == 1:
-        # img = Image.fromarray(x[0, :, :], "L")
+    if x.shape[-1] == 1:
         plt.imshow(x[:, :, 0], cmap="gray")
         plt.savefig(path, bbox_inches="tight", pad_inches=0)
     else:
-        # img = Image.fromarray(x, "RGB")
+        # plt.imshow(x)  # rows, columns, channels
         plt.imshow(x)  # rows, columns, channels
-        print("x.shape", x.shape)
-        plt.show()
-        # img.save(path)
         plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
 

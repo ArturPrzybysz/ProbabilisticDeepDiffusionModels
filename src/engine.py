@@ -26,6 +26,7 @@ class Engine(pl.LightningModule):
             beta_start=None,
             beta_end=None,
             mode="linear",
+            sigma_mode="beta",
             resolution=32,
             clip_while_generating=True,
     ):
@@ -41,7 +42,7 @@ class Engine(pl.LightningModule):
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution
 
-        print(self.device)
+        self.sigma_mode = sigma_mode
         self.betas = get_betas(beta_start, beta_end, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
         # print(self.alphas)
@@ -118,13 +119,24 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t_start)
         return self.sample_from_multiple_steps(x_t.detach().clone(), t_start, steps_to_return), x_t
 
+    def get_sigma(self, t):
+        if self.sigma_mode == 'beta':
+            return torch.sqrt(self.betas[t])
+        elif self.sigma_mode == 'beta_tilde':
+            variance = (
+                    self.betas[t] * (1.0 - self.alphas_hat[t-1]) / (1.0 - self.alphas_hat[t])
+                )
+            return torch.sqrt(variance)
+        else:
+            raise ValueError(f'Wrong sigma mode: {self.sigma_mode}')
+
     def denoising_step(self, x_t, t, mean_only=False):
         epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
-        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
-        sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+        epsilon *= (self.betas[t] / self.one_min_alphas_hat_sqrt[t]).to(self.device)
+        sigma = self.get_sigma(t).to(self.device)
 
         x_t -= epsilon
-        x_t /= self.alphas[t - 1].to(self.device)
+        x_t /= self.alphas[t].to(self.device)
 
         if not mean_only:
             if t > 1:

@@ -15,13 +15,14 @@ class VisualizationCallback(Callback):
         os.mkdir(self.img_path)
         self.run_every = run_every
         self.n_images = 4
+        self.n_random = 10
         self.ts = list(sorted(ts))
         self.normalization = normalization
 
     def run_visualizations(self, pl_module):
-        self.visualize_random(pl_module)
+        # self.visualize_random(pl_module)
         self.visualize_random_grid(pl_module)
-        self.visualize_random(pl_module, mean_only=True)
+        # self.visualize_random(pl_module, mean_only=True)
         self.visualize_reconstructions_grid(pl_module)
         # self.visualize_reconstructions(pl_module)
 
@@ -49,16 +50,16 @@ class VisualizationCallback(Callback):
         )
         if not os.path.exists(img_path):
             os.mkdir(img_path)
-            noise, images = pl_module.generate_images_grid(steps_to_return=self.ts[:-1] + [1], n=self.n_images, mean_only=mean_only)
+            noise, images = pl_module.generate_images_grid(steps_to_return=self.ts[:-1] + [1], n=self.n_random, mean_only=mean_only)
 
             channels = images.shape[2]
             width = images.shape[3]
             height = images.shape[4]
             step_count = len(self.ts)
-            image_grid = np.ones((height * self.n_images, width * (step_count + 1), channels))
+            image_grid = np.ones((height * self.n_random, width * (step_count + 1), channels))
 
             # iterate through images
-            for img_idx in range(self.n_images):
+            for img_idx in range(self.n_random):
                 # starting noise
                 noisy_img = model_output_to_image_numpy(noise[img_idx])
                 image_grid[
@@ -70,7 +71,7 @@ class VisualizationCallback(Callback):
                 # all the denoising steps
                 for step in range(0, step_count):
                     img_to_display = model_output_to_image_numpy(
-                        images[img_idx, step_count - step - 1])
+                        images[img_idx, step])
 
                     image_grid[
                     height * (img_idx):height * (img_idx + 1),

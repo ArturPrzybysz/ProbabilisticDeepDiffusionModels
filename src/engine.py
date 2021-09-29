@@ -1,3 +1,5 @@
+import math
+
 import torch
 import pytorch_lightning as pl
 
@@ -6,8 +8,11 @@ import numpy as np
 
 from src.utils import mean_flat
 
+# TODO: what is this
+def alpha_bar(t):
+    return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
 
-def get_betas(beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear"):
+def get_betas(beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999):
     if mode == "linear":
         if beta_start is None or beta_end is None:
             # scale to the number of steps
@@ -15,7 +20,16 @@ def get_betas(beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear
             beta_start = scale * 0.0001
             beta_end = scale * 0.02
         return torch.linspace(beta_start, beta_end, diffusion_steps)
-
+    elif mode == "cosine":
+        # TODO: what is this
+        betas = []
+        for i in range(diffusion_steps):
+            t1 = i / diffusion_steps
+            t2 = (i + 1) / diffusion_steps
+            betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+        return np.array(betas)
+    else:
+        raise ValueError(f"Wrong beta mode: {mode}")
 
 class Engine(pl.LightningModule):
     def __init__(
@@ -50,6 +64,12 @@ class Engine(pl.LightningModule):
         # print(self.alphas_hat)
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
+
+        self.alphas_hat_prev = np.append(1.0, self.alphas_hat[:-1])
+        self.alphas_hat_next = np.append(self.alphas_hat[1:], 0.0)
+        self.posterior_variance = (
+            self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)
@@ -123,20 +143,18 @@ class Engine(pl.LightningModule):
         if self.sigma_mode == 'beta':
             return torch.sqrt(self.betas[t])
         elif self.sigma_mode == 'beta_tilde':
-            variance = (
-                    self.betas[t] * (1.0 - self.alphas_hat[t-1]) / (1.0 - self.alphas_hat[t])
-                )
+            variance = self.posterior_variance[t]
             return torch.sqrt(variance)
         else:
             raise ValueError(f'Wrong sigma mode: {self.sigma_mode}')
 
     def denoising_step(self, x_t, t, mean_only=False):
         epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
-        epsilon *= (self.betas[t] / self.one_min_alphas_hat_sqrt[t]).to(self.device)
-        sigma = self.get_sigma(t).to(self.device)
+        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
+        sigma = self.get_sigma(t-1).to(self.device)
 
         x_t -= epsilon
-        x_t /= self.alphas[t].to(self.device)
+        x_t /= self.alphas[t - 1].to(self.device)
 
         if not mean_only:
             if t > 1:

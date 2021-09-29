@@ -15,6 +15,7 @@ engine:
   beta_start: null
   beta_end: null
   clip_while_generating: true
+  sigma_mode: beta
 defaults:
   - model: unet_small_grey
   - data: mnist

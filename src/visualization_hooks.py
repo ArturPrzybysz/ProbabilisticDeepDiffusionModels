@@ -6,7 +6,7 @@ from pytorch_lightning import Callback
 
 from src.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
-
+import wandb
 
 class VisualizationCallback(Callback):
     def __init__(self, dataloader, img_path, ts, run_every=None, normalization=None):
@@ -211,6 +211,13 @@ class VisualizationCallback(Callback):
                 # save image
                 path = os.path.join(img_path, f"image_{img_idx}_epoch_{pl_module.current_epoch}.png")
                 plt.savefig(path, bbox_inches="tight", pad_inches=0)
+
+                try:
+                    images = wandb.Image(img, caption=f"image_{img_idx}_epoch_{pl_module.current_epoch}")
+                    wandb.log({f"reconstructions_{img_idx}": images})
+                except Exception as e:
+                    print('Wandb image logging failed')
+                    print(e)
 
     def on_train_epoch_end(self, trainer, pl_module):
         if self.run_every is not None and pl_module.current_epoch % self.run_every == 0:

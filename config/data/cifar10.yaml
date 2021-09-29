@@ -1,4 +1,4 @@
 name: CIFAR10
 batch_size: 128
 transformation_kwargs:
-  normalize: cifar
+  normalize: oneone

@@ -7,9 +7,14 @@ import numpy as np
 from src.utils import mean_flat
 
 
-def get_betas(b0, bmax, diffusion_steps, mode="linear"):
+def get_betas(beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear"):
     if mode == "linear":
-        return torch.linspace(b0, bmax, diffusion_steps)
+        if beta_start is None or beta_end is None:
+            # scale to the number of steps
+            scale = 1000 / diffusion_steps
+            beta_start = scale * 0.0001
+            beta_end = scale * 0.02
+        return torch.linspace(beta_start, beta_end, diffusion_steps)
 
 
 class Engine(pl.LightningModule):
@@ -17,14 +22,17 @@ class Engine(pl.LightningModule):
             self,
             model_config,
             optimizer_config,
-            diffusion_steps=6,
-            b0=1e-3,
-            bmax=0.02,
+            diffusion_steps=1000,
+            beta_start=None,
+            beta_stop=None,
             mode="linear",
             resolution=32,
+            clip_while_generating=True,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
+
+        self.clip_while_generating = clip_while_generating
 
         # create the model here
         self.model = get_model(dict(model_config))
@@ -34,14 +42,13 @@ class Engine(pl.LightningModule):
         self.resolution = resolution
 
         print(self.device)
-        self.betas = get_betas(b0, bmax, diffusion_steps, mode).to(self.device)
+        self.betas = get_betas(beta_start, beta_stop, diffusion_steps, mode).to(self.device)
         self.alphas = 1 - self.betas
         # print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)
         # print(self.alphas_hat)
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
-        # TODO: precompute sqrts etc.
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)
@@ -125,6 +132,8 @@ class Engine(pl.LightningModule):
             else:
                 z = 0
             x_t -= sigma * z
+        if self.clip_while_generating:
+            x_t = x_t.clamp(-1, 1)
         return x_t
 
     def sample_from_step(self, x_t, t_start, mean_only=False):

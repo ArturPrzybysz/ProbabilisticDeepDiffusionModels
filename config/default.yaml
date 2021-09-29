@@ -9,10 +9,11 @@ trainer:
 engine:
   resolution: 32
   optimizer_config:
-    lr: 3e-4
+    lr: 1e-4
   diffusion_steps: 1000
-  b0: 1e-4
-  bmax: 0.02
+  beta_start: null
+  beta_end: null
+  clip_while_generating: true
 defaults:
   - model: unet_small_grey
   - data: mnist

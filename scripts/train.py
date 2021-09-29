@@ -15,11 +15,14 @@ from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
 wandb.init(project="diffusion", entity="ddpm")
-
+wandb.config.update({'script': 'train'})
 
 @hydra.main(config_path="../config", config_name="default")
 def run_training(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
+    if cfg["run_name"] is not None:
+        wandb.run.name = cfg["run_name"]
+        wandb.run.save()
 
     cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
     with open(cfg_file, "w") as fh:

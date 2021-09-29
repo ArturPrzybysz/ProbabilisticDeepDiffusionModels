@@ -27,7 +27,7 @@ def get_betas(beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear
             t1 = i / diffusion_steps
             t2 = (i + 1) / diffusion_steps
             betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
-        return np.array(betas)
+        return torch.tensor(betas)
     else:
         raise ValueError(f"Wrong beta mode: {mode}")
 

@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 from collections.abc import Iterable
+
 # this shit seems to be required to download
 from six.moves import urllib
 
@@ -19,9 +20,9 @@ SPLIT_NAMES = {
 }
 
 NORMALIZATIONS = {
-    'cifar': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-    'mnist': ((0.5,), (0.5,)),
-    'oneone': ((0.5,0.5,0.5), (0.5,0.5,0.5)),
+    "cifar": ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    "mnist": ((0.5,), (0.5,)),
+    "oneone": ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 }
 
 
@@ -72,24 +73,22 @@ def get_transformations(
         elif isinstance(normalize, Iterable):
             mean, std = normalize
         else:
-            raise ValueError(f'Wrong normalization: {normalize}')
+            raise ValueError(f"Wrong normalization: {normalize}")
 
-        transformations.append(
-            transforms.Normalize(mean, std)
-        )
+        transformations.append(transforms.Normalize(mean, std))
 
     return transforms.Compose(transformations)
 
+
 def unnormalize(x, normalize=None, clip=False, channel_dim=0):
-    """ Reverts data normalization and clips
-    """
+    """Reverts data normalization and clips"""
     if normalize is not None:
         if isinstance(normalize, str):
             mean, std = NORMALIZATIONS[normalize]
         elif isinstance(normalize, Iterable):
             mean, std = normalize
         else:
-            raise ValueError(f'Wrong normalization: {normalize}')
+            raise ValueError(f"Wrong normalization: {normalize}")
 
         norm_shape = [1] * len(x.shape)
         channels = x.shape[channel_dim]
@@ -102,5 +101,3 @@ def unnormalize(x, normalize=None, clip=False, channel_dim=0):
         return np.clip(x, 0, 1)
     else:
         return x
-
-

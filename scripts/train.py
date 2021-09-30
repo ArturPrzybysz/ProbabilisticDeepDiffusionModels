@@ -15,7 +15,8 @@ from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
 wandb.init(project="diffusion", entity="ddpm")
-wandb.config.update({'script': 'train'})
+wandb.config.update({"script": "train"})
+
 
 @hydra.main(config_path="../config", config_name="default")
 def run_training(cfg: DictConfig):
@@ -65,8 +66,10 @@ def run_training(cfg: DictConfig):
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
             run_every=3,
-            ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps+1, dtype=int)[1:],
-            normalization=cfg["data"]["transformation_kwargs"].get('normalize')
+            ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[
+                1:
+            ],
+            normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
         )
     )
 

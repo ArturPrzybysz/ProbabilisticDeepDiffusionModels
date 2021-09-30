@@ -154,7 +154,7 @@ class Engine(pl.LightningModule):
         if not mean_only:
             if t > 1:
                 z = torch.randn(
-                    x_t.shape, generator=generator, device=self.device, dtype=x_t.dype
+                    x_t.shape, generator=generator, device=self.device, dtype=x_t.dtype
                 )
             else:
                 z = 0
@@ -247,7 +247,7 @@ class Engine(pl.LightningModule):
         generator = get_generator_if_specified(seed, device=self.device)
         x0 = x0.to(self.device)
         noise = torch.randn(
-            x0.shape, generator=generator, device=self.device, dtype=x0.dype
+            x0.shape, generator=generator, device=self.device, dtype=x0.dtype
         )
         x_t = self.get_q_t(x0, noise, t)
         return self.sample_from_step(x_t.detach().clone(), t, generator=generator), x_t
@@ -259,7 +259,7 @@ class Engine(pl.LightningModule):
         generator = get_generator_if_specified(seed, device=self.device)
         x0 = x0.to(self.device)
         noise = torch.randn(
-            x0.shape, generator=generator, device=self.device, dtype=x0.dype
+            x0.shape, generator=generator, device=self.device, dtype=x0.dtype
         )
         x_t = self.get_q_t(x0, noise, t_start)
         return (

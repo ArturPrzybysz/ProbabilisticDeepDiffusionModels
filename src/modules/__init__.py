@@ -33,7 +33,7 @@ def get_unet(
 
     learn_sigma = False  # TODO
 
-    UNetModel(
+    return UNetModel(
         in_channels=in_channels,
         model_channels=model_channels,
         out_channels=(in_channels if not learn_sigma else in_channels * 2),

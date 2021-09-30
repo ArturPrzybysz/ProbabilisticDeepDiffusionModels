@@ -1,7 +1,6 @@
 name: unet
 in_channels: 3
 model_channels: 32
-out_channels: 3
 num_res_blocks: 1
 attention_resolutions: []
 dropout: 0

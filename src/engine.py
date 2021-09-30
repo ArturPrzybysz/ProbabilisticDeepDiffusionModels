@@ -1,56 +1,93 @@
+import math
+
 import torch
 import pytorch_lightning as pl
 
 from src.modules import get_model
 import numpy as np
 
-from src.utils import mean_flat
+from src.utils import mean_flat, get_generator_if_specified
 
 
-def get_betas(b0, bmax, diffusion_steps, mode="linear"):
+# TODO: what is this
+def alpha_bar(t):
+    return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
+
+
+def get_betas(
+    beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999
+):
     if mode == "linear":
-        return torch.linspace(b0, bmax, diffusion_steps)
+        if beta_start is None or beta_end is None:
+            # scale to the number of steps
+            scale = 1000 / diffusion_steps
+            beta_start = scale * 0.0001
+            beta_end = scale * 0.02
+        return torch.linspace(beta_start, beta_end, diffusion_steps)
+    elif mode == "cosine":
+        # TODO: what is this
+        betas = []
+        for i in range(diffusion_steps):
+            t1 = i / diffusion_steps
+            t2 = (i + 1) / diffusion_steps
+            betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+        return torch.tensor(betas)
+    else:
+        raise ValueError(f"Wrong beta mode: {mode}")
 
 
 class Engine(pl.LightningModule):
     def __init__(
-            self,
-            model_config,
-            optimizer_config,
-            diffusion_steps=6,
-            b0=1e-3,
-            bmax=0.02,
-            mode="linear",
-            resolution=32,
+        self,
+        model_config,
+        optimizer_config,
+        diffusion_steps=1000,
+        beta_start=None,
+        beta_end=None,
+        mode="linear",
+        sigma_mode="beta",
+        resolution=32,
+        clip_while_generating=True,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
 
+        self.clip_while_generating = clip_while_generating
+
         # create the model here
-        self.model = get_model(dict(model_config))
+        self.model = get_model(resolution, dict(model_config))
         print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution
 
-        print(self.device)
-        self.betas = get_betas(b0, bmax, diffusion_steps, mode).to(self.device)
+        self.sigma_mode = sigma_mode
+        self.betas = get_betas(beta_start, beta_end, diffusion_steps, mode).to(
+            self.device
+        )
         self.alphas = 1 - self.betas
         # print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)
         # print(self.alphas_hat)
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
-        # TODO: precompute sqrts etc.
+
+        self.alphas_hat_prev = np.append(1.0, self.alphas_hat[:-1])
+        self.alphas_hat_next = np.append(self.alphas_hat[1:], 0.0)
+        self.posterior_variance = (
+            self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
+    # ------------ Training and diffusion stuff ----------
+
     def get_q_t(self, x, noise, t):
         return (
-                x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-                + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-                * noise
+            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            * noise
         )
 
     def get_loss(self, predicted_noise, target_noise):
@@ -93,48 +130,48 @@ class Engine(pl.LightningModule):
         )
         return total_norm
 
-    @torch.no_grad()
-    def diffuse_and_reconstruct(self, x0, t):
-        """Will apply forward process to x0 up to t steps and then reconstruct."""
-        self.eval()
-        x0 = x0.to(self.device)
-        noise = torch.randn_like(x0)
-        x_t = self.get_q_t(x0, noise, t)
-        return self.sample_from_step(x_t.detach().clone(), t), x_t
+    def get_sigma(self, t):
+        if self.sigma_mode == "beta":
+            return torch.sqrt(self.betas[t])
+        elif self.sigma_mode == "beta_tilde":
+            variance = self.posterior_variance[t]
+            return torch.sqrt(variance)
+        else:
+            raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
-    @torch.no_grad()
-    def diffuse_and_reconstruct_grid(self, x0, t_start, steps_to_return):
-        """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
-        self.eval()
-        x0 = x0.to(self.device)
-        noise = torch.randn_like(x0)
-        x_t = self.get_q_t(x0, noise, t_start)
-        return self.sample_from_multiple_steps(x_t.detach().clone(), t_start, steps_to_return), x_t
+    # ------------ Sampling and generation utils ----------
 
-    def denoising_step(self, x_t, t, mean_only=False):
+    def denoising_step(self, x_t, t, mean_only=False, generator=None):
         epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
-        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(self.device)
-        sigma = torch.sqrt(self.betas[t - 1]).to(self.device)
+        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+            self.device
+        )
+        sigma = self.get_sigma(t - 1).to(self.device)
 
         x_t -= epsilon
         x_t /= self.alphas[t - 1].to(self.device)
 
         if not mean_only:
             if t > 1:
-                z = torch.randn_like(x_t).to(self.device)
+                z = torch.randn(
+                    x_t.shape, generator=generator, device=self.device, dtype=x_t.dtype
+                )
             else:
                 z = 0
             x_t -= sigma * z
+        if self.clip_while_generating:
+            x_t = x_t.clamp(-1, 1)
         return x_t
 
-    def sample_from_step(self, x_t, t_start, mean_only=False):
+    def sample_from_step(self, x_t, t_start, mean_only=False, generator=None):
         for t in range(t_start, 0, -1):
-            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 
-    def sample_from_multiple_steps(self, x_t, t_start, steps_to_return, mean_only=False):
-        """ Returns shape [B, STEPS, C, W, H]
-        """
+    def sample_and_return_steps(
+        self, x_t, t_start, steps_to_return, mean_only=False, generator=None
+    ):
+        """Returns shape [B, STEPS, C, W, H]"""
         assert all(t < t_start for t in steps_to_return)
 
         batch_size = x_t.shape[0]
@@ -145,7 +182,7 @@ class Engine(pl.LightningModule):
         current_step_idx = 0
 
         for t in range(t_start, 0, -1):
-            x_t = self.denoising_step(x_t, t, mean_only=mean_only)
+            x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
 
             if t in steps_to_return:
                 output[:, current_step_idx] = x_t
@@ -153,39 +190,81 @@ class Engine(pl.LightningModule):
 
         return output
 
+    # ------------ Image generation endpoints ----------
+
     @torch.no_grad()
-    def generate_images(self, n=1, minibatch=4, mean_only=False):
+    def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None):
         self.eval()
+        generator = get_generator_if_specified(seed, device=self.device)
         images = []
 
         for i in range(np.ceil(n / minibatch).astype(int)):
             x_t = torch.randn(
-                (n, self.model.in_channels, self.resolution, self.resolution)
-            ).to(self.device)
+                (n, self.model.in_channels, self.resolution, self.resolution),
+                generator=generator,
+                device=self.device,
+            )
 
-            x_t = self.sample_from_step(x_t, self.diffusion_steps, mean_only=mean_only)
+            x_t = self.sample_from_step(
+                x_t, self.diffusion_steps, mean_only=mean_only, generator=generator
+            )
             images.append(x_t.detach().cpu().numpy())
 
         return np.concatenate(images, axis=0)
 
     @torch.no_grad()
-    def generate_images_grid(self, steps_to_return, n=1, minibatch=4, mean_only=False):
+    def generate_images_grid(
+        self, steps_to_return, n=1, minibatch=4, mean_only=False, seed=None
+    ):
         self.eval()
+        generator = get_generator_if_specified(seed, device=self.device)
         starting_noise = []
         images = []
 
         for i in range(np.ceil(n / minibatch).astype(int)):
             x_t = torch.randn(
-                (n, self.model.in_channels, self.resolution, self.resolution)
-            ).to(self.device)
+                (n, self.model.in_channels, self.resolution, self.resolution),
+                generator=generator,
+                device=self.device,
+            )
             starting_noise.append(x_t.detach().cpu().numpy())
 
-            x_t = self.sample_from_multiple_steps(x_t, self.diffusion_steps,
-                                                  steps_to_return=steps_to_return,
-                                                  mean_only=mean_only)
+            x_t = self.sample_and_return_steps(
+                x_t,
+                self.diffusion_steps,
+                steps_to_return=steps_to_return,
+                mean_only=mean_only,
+                generator=generator,
+            )
             images.append(x_t.detach().cpu().numpy())
 
         return np.concatenate(starting_noise, axis=0), np.concatenate(images, axis=0)
 
-    # def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
-    #     raise NotImplementedError
+    @torch.no_grad()
+    def diffuse_and_reconstruct(self, x0, t, seed=None):
+        """Will apply forward process to x0 up to t steps and then reconstruct."""
+        self.eval()
+        generator = get_generator_if_specified(seed, device=self.device)
+        x0 = x0.to(self.device)
+        noise = torch.randn(
+            x0.shape, generator=generator, device=self.device, dtype=x0.dtype
+        )
+        x_t = self.get_q_t(x0, noise, t)
+        return self.sample_from_step(x_t.detach().clone(), t, generator=generator), x_t
+
+    @torch.no_grad()
+    def diffuse_and_reconstruct_grid(self, x0, t_start, steps_to_return, seed=None):
+        """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
+        self.eval()
+        generator = get_generator_if_specified(seed, device=self.device)
+        x0 = x0.to(self.device)
+        noise = torch.randn(
+            x0.shape, generator=generator, device=self.device, dtype=x0.dtype
+        )
+        x_t = self.get_q_t(x0, noise, t_start)
+        return (
+            self.sample_and_return_steps(
+                x_t.detach().clone(), t_start, steps_to_return, generator=generator
+            ),
+            x_t,
+        )

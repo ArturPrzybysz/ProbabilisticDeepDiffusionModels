@@ -1,6 +1,8 @@
+import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 def mean_flat(tensor):
     """
@@ -10,6 +12,7 @@ def mean_flat(tensor):
 
 
 def save_img(x, path):
+    plt.figure()
     x = x.transpose(1, 2, 0)
     if x.shape[-1] == 1:
         plt.imshow(x[:, :, 0], cmap="gray")
@@ -26,3 +29,12 @@ def model_output_to_image_numpy(x):
         return x[:, :, 0]
     else:
         return x
+
+
+def get_generator_if_specified(seed=None, device="cpu"):
+    if seed is None:
+        return None
+    else:
+        generator = torch.Generator(device=device)
+        generator.manual_seed(seed)
+        return generator

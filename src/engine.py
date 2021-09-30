@@ -55,7 +55,7 @@ class Engine(pl.LightningModule):
         self.clip_while_generating = clip_while_generating
 
         # create the model here
-        self.model = get_model(dict(model_config))
+        self.model = get_model(resolution, dict(model_config))
         print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps

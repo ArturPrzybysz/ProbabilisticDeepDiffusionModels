@@ -65,8 +65,11 @@ def run_training(cfg: DictConfig):
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
-            run_every=3,
+            run_every=5,
             ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[
+                1:
+            ],
+            ts_interpolation=np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[
                 1:
             ],
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),

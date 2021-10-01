@@ -15,7 +15,14 @@ import wandb
 
 class VisualizationCallback(Callback):
     def __init__(
-        self, dataloader, img_path, ts, run_every=None, normalization=None, seed=1234
+        self,
+        dataloader,
+        img_path,
+        ts,
+        ts_interpolation,
+        run_every=None,
+        normalization=None,
+        seed=1234,
     ):
         self.dataloader = dataloader
         self.img_path = img_path
@@ -25,6 +32,7 @@ class VisualizationCallback(Callback):
         self.n_random = 10
         self.n_interpolations = 10
         self.ts = list(sorted(ts))
+        self.ts_interpolation = list(sorted(ts_interpolation))
         self.normalization = normalization
         self.seed = seed
 
@@ -139,70 +147,94 @@ class VisualizationCallback(Callback):
             batch = self.get_first_batch()
             x, y = batch
 
-            image_rows = []
+            print(self.ts_interpolation)
+            for t in self.ts_interpolation:
+                image_rows = []
+                for i in range(self.n_images):
+                    for j in range(i + 1, self.n_images):
+                        x_i0 = pl_module.get_noised_representation(
+                            x[i : i + 1], seed=self.seed + i, t=t
+                        )
+                        x_j0 = pl_module.get_noised_representation(
+                            x[j : j + 1], seed=self.seed + j, t=t
+                        )
+                        x_0 = torch.ones(
+                            [self.n_interpolations] + list(x_i0.shape[1:]),
+                            device=pl_module.device,
+                            dtype=x_i0.dtype,
+                        )
 
-            for i in range(self.n_images):
-                for j in range(i + 1, self.n_images):
-                    x_i0 = pl_module.get_noised_representation(
-                        x[i : i + 1], seed=self.seed + i
-                    )
-                    x_j0 = pl_module.get_noised_representation(
-                        x[j : j + 1], seed=self.seed + j
-                    )
-                    x_0 = torch.ones(
-                        [self.n_interpolations] + list(x_i0.shape[1:]),
-                        device=pl_module.device,
-                        dtype=x_i0.dtype,
-                    )
+                        for k, a in enumerate(np.linspace(0, 1, self.n_interpolations)):
+                            x_0[k : k + 1] = (1 - a) * x_i0 + a * x_j0
 
-                    for k, a in enumerate(np.linspace(0, 1, self.n_interpolations)):
-                        x_0[k : k + 1] = (1 - a) * x_i0 + 1 * x_j0
+                        if t == pl_module.diffusion_steps:
+                            steps_to_return = self.ts[:-1] + [1]
+                        else:
+                            steps_to_return = [1]
 
-                    images = pl_module.sample_and_return_steps(
-                        x_0.detach().clone(),
-                        t_start=None,
-                        steps_to_return=self.ts[:-1] + [1],
-                        seed=self.seed,
-                    )
-                    img_row = images[:, -1].detach().cpu().numpy()
-                    xi_npy = x[i : i + 1].detach().cpu().numpy()
-                    xj_npy = x[j : j + 1].detach().cpu().numpy()
-                    img_row = np.concatenate(
-                        [
-                            xi_npy,
-                            img_row,
-                            xj_npy,
-                        ],
-                        axis=0,
-                    )
-                    image_rows.append(img_row)
+                        images = pl_module.sample_and_return_steps(
+                            x_0.detach().clone(),
+                            t_start=t,
+                            steps_to_return=steps_to_return,
+                            seed=self.seed,
+                        )
+                        img_row = images[:, -1].detach().cpu().numpy()
+                        xi_npy = x[i : i + 1].detach().cpu().numpy()
+                        xj_npy = x[j : j + 1].detach().cpu().numpy()
+                        img_row = np.concatenate(
+                            [
+                                xi_npy,
+                                img_row,
+                                xj_npy,
+                            ],
+                            axis=0,
+                        )
 
-                    reference_column = np.ones(
-                        [self.n_interpolations, 1] + list(x_i0.shape[1:])
-                    )
-                    reference_column[0:1, 0] = xi_npy
-                    reference_column[-1 : self.n_interpolations, 0] = xj_npy
+                        originals_row = np.concatenate(
+                            [
+                                np.ones_like(xi_npy),
+                                x_0.detach().cpu().numpy(),
+                                np.ones_like(xi_npy),
+                            ],
+                            axis=0,
+                        )
+                        image_rows.append(originals_row)
+                        image_rows.append(img_row)
 
-                    images = np.concatenate(
-                        [images.detach().cpu().numpy(), reference_column], axis=1
-                    )
+                        if t == pl_module.diffusion_steps:
+                            reference_column = np.ones(
+                                [self.n_interpolations, 1] + list(x_i0.shape[1:])
+                            )
+                            reference_column[0:1, 0] = xi_npy
+                            reference_column[-1 : self.n_interpolations, 0] = xj_npy
 
-                    self.show_full_reconstruction(
-                        images,
-                        x_0.detach().cpu().numpy(),
-                        img_path,
-                        pl_module.current_epoch,
-                        key=f"interpolation_{i}_{j}",
-                    )
+                            images = np.concatenate(
+                                [images.detach().cpu().numpy(), reference_column],
+                                axis=1,
+                            )
 
-            self.plot_grid(
-                image_rows,
-                img_path,
-                key="all_interpolations",
-                epoch=pl_module.current_epoch,
-                border=[(i, 0) for i in range(len(image_rows))]
-                + [(i, self.n_interpolations + 1) for i in range(len(image_rows))],
-            )
+                            self.show_full_reconstruction(
+                                images,
+                                x_0.detach().cpu().numpy(),
+                                img_path,
+                                pl_module.current_epoch,
+                                key=f"interpolation_{i}_{j}",
+                            )
+
+                # choose which images should have red border
+                borders = [
+                    (i, j)
+                    for i in range(len(image_rows))
+                    for j in range(self.n_interpolations + 2)
+                    if i % 2 == 0 or j == 0 or j == self.n_interpolations + 1
+                ]
+                self.plot_grid(
+                    image_rows,
+                    img_path,
+                    key=f"all_interpolations_{t}",
+                    epoch=pl_module.current_epoch,
+                    border=borders,
+                )
 
     def plot_grid(self, image_rows, path, key, epoch, border=tuple()):
         ncol = image_rows[0].shape[0]

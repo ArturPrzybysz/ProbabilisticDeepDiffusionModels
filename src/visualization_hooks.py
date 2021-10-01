@@ -2,7 +2,9 @@ import os
 
 import numpy as np
 import torch
+from PIL import Image
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
 from pytorch_lightning import Callback
 from torch.utils.data.dataloader import default_collate
 
@@ -137,6 +139,8 @@ class VisualizationCallback(Callback):
             batch = self.get_first_batch()
             x, y = batch
 
+            image_rows = []
+
             for i in range(self.n_images):
                 for j in range(i + 1, self.n_images):
                     x_i0 = pl_module.get_noised_representation(
@@ -152,7 +156,7 @@ class VisualizationCallback(Callback):
                     )
 
                     for k, a in enumerate(np.linspace(0, 1, self.n_interpolations)):
-                        x_0[k:k+1] = (1 - a) * x_i0 + 1 * x_j0
+                        x_0[k : k + 1] = (1 - a) * x_i0 + 1 * x_j0
 
                     images = pl_module.sample_and_return_steps(
                         x_0.detach().clone(),
@@ -160,14 +164,90 @@ class VisualizationCallback(Callback):
                         steps_to_return=self.ts[:-1] + [1],
                         seed=self.seed,
                     )
+                    img_row = images[:, -1].detach().cpu().numpy()
+                    xi_npy = x[i : i + 1].detach().cpu().numpy()
+                    xj_npy = x[j : j + 1].detach().cpu().numpy()
+                    img_row = np.concatenate(
+                        [
+                            xi_npy,
+                            img_row,
+                            xj_npy,
+                        ],
+                        axis=0,
+                    )
+                    image_rows.append(img_row)
+
+                    reference_column = np.ones(
+                        [self.n_interpolations, 1] + list(x_i0.shape[1:])
+                    )
+                    reference_column[0:1, 0] = xi_npy
+                    reference_column[-1 : self.n_interpolations, 0] = xj_npy
+
+                    images = np.concatenate(
+                        [images.detach().cpu().numpy(), reference_column], axis=1
+                    )
 
                     self.show_full_reconstruction(
-                        images.detach().cpu().numpy(),
+                        images,
                         x_0.detach().cpu().numpy(),
                         img_path,
                         pl_module.current_epoch,
                         key=f"interpolation_{i}_{j}",
                     )
+
+            self.plot_grid(
+                image_rows,
+                img_path,
+                key="all_interpolations",
+                epoch=pl_module.current_epoch,
+                border=[(i, 0) for i in range(len(image_rows))]
+                + [(i, self.n_interpolations + 1) for i in range(len(image_rows))],
+            )
+
+    def plot_grid(self, image_rows, path, key, epoch, border=tuple()):
+        ncol = image_rows[0].shape[0]
+        nrow = len(image_rows)
+        channels = image_rows[0].shape[1]
+        fig = plt.figure()
+        grid = ImageGrid(
+            fig,
+            111,  # similar to subplot(111)
+            nrows_ncols=(nrow, ncol),
+            axes_pad=(0.03, 0.05),
+        )
+        for i, image_row in enumerate(image_rows):
+            for j in range(ncol):
+                ax = grid[i * ncol + j]
+
+                img = unnormalize(
+                    model_output_to_image_numpy(image_row[j]),
+                    normalize=self.normalization,
+                    clip=True,
+                    channel_dim=-1,
+                )
+
+                if channels == 1:
+                    ax.imshow(img, cmap="gray")
+                else:
+                    ax.imshow(img)
+
+                if (i, j) in border:
+                    ax.patch.set_linewidth("2")
+                    ax.patch.set_edgecolor("red")
+                    ax.patch.set_facecolor("red")
+                    ax.margins(0.2, 0.05)
+                    ax.set_xticks([], [])
+                    ax.set_yticks([], [])
+                else:
+                    ax.axis("off")
+
+        # save image
+        path = os.path.join(path, f"{key}_epoch_{epoch}.png")
+        plt.savefig(path, bbox_inches="tight", pad_inches=0.02)
+
+        im = plt.imread(path)
+        images = wandb.Image(im, caption=f"{key}_epoch_{epoch}")
+        wandb.log({key: images})
 
     def visualize_reconstructions(self, pl_module):
         img_path = os.path.join(

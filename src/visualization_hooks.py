@@ -236,8 +236,8 @@ class VisualizationCallback(Callback):
                     ax.patch.set_edgecolor("red")
                     ax.patch.set_facecolor("red")
                     ax.margins(0.2, 0.05)
-                    ax.set_xticks([], [])
-                    ax.set_yticks([], [])
+                    ax.yaxis.set_ticks([])
+                    ax.xaxis.set_ticks([])
                 else:
                     ax.axis("off")
 

@@ -1,9 +1,10 @@
 name: CelebA
 batch_size: 8
 num_workers: 4
+num_samples_per_epoch: 10000
 transformation_kwargs:
   normalize: oneone
   crop: True
-  crop_size: 178
+  crop_size: 168
   crop_padding: 0
   flip: True

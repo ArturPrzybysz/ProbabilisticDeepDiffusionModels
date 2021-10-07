@@ -1,4 +1,4 @@
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 from torchvision import datasets, transforms, models
 from collections.abc import Iterable
 
@@ -34,6 +34,7 @@ def get_dataloader(
     num_workers=4,
     pin_memory=True,
     transformation_kwargs=None,
+    num_samples_per_epoch=None,
 ):
     dataset = getattr(datasets, name)
 
@@ -48,8 +49,15 @@ def get_dataloader(
     else:
         dataset = dataset(dir, train=train, download=download, transform=transform)
 
+    if num_samples_per_epoch is not None:
+        shuffle = False
+        sampler = RandomSampler(dataset, num_samples=num_samples_per_epoch)
+    else:
+        shuffle = train
+        sampler = None
+
     return DataLoader(
-        dataset, batch_size=batch_size, num_workers=num_workers, shuffle=train
+        dataset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle, sampler=sampler,
     )
 
 

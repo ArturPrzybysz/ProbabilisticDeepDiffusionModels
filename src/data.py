@@ -51,7 +51,7 @@ def get_dataloader(
 
     if num_samples_per_epoch is not None:
         shuffle = False
-        sampler = RandomSampler(dataset, num_samples=num_samples_per_epoch)
+        sampler = RandomSampler(dataset, num_samples=num_samples_per_epoch, replacement=True)
     else:
         shuffle = train
         sampler = None

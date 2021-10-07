@@ -23,14 +23,17 @@ class VisualizationCallback(Callback):
         run_every=None,
         normalization=None,
         seed=1234,
+        n_images=4,
+        n_random = 10,
+        n_interpolations = 10,
     ):
         self.dataloader = dataloader
         self.img_path = img_path
         os.mkdir(self.img_path)
         self.run_every = run_every
-        self.n_images = 4
-        self.n_random = 10
-        self.n_interpolations = 10
+        self.n_images = n_images
+        self.n_random = n_random
+        self.n_interpolations = n_interpolations
         self.ts = list(sorted(ts))
         self.ts_interpolation = list(sorted(ts_interpolation))
         self.normalization = normalization
@@ -429,7 +432,7 @@ class VisualizationCallback(Callback):
                 wandb.log({f"reconstructions_{img_idx}": images})
 
     def on_train_epoch_end(self, trainer, pl_module):
-        if self.run_every is not None and pl_module.current_epoch % self.run_every == 0:
+        if self.run_every is not None and (pl_module.current_epoch + 1) % self.run_every == 0:
             self.run_visualizations(pl_module)
 
     def on_train_end(self, trainer, pl_module):

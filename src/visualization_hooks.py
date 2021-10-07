@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 from pytorch_lightning import Callback
 from torch.utils.data.dataloader import default_collate
+from tqdm import tqdm
 
 from src.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
@@ -41,8 +42,8 @@ class VisualizationCallback(Callback):
 
     def run_visualizations(self, pl_module):
         # self.visualize_random(pl_module)
-        self.visualize_interpolation(pl_module)
         self.visualize_random_grid(pl_module)
+        self.visualize_interpolation(pl_module)
         # self.visualize_random(pl_module, mean_only=True)
         self.visualize_reconstructions_grid(pl_module)
         # self.visualize_reconstructions(pl_module)
@@ -126,6 +127,7 @@ class VisualizationCallback(Callback):
         )
         if not os.path.exists(img_path):
             os.mkdir(img_path)
+            print(f"Generating {self.n_random} random images")
             noise, images = pl_module.generate_images_grid(
                 steps_to_return=self.ts[:-1] + [1],
                 n=self.n_random,
@@ -150,8 +152,8 @@ class VisualizationCallback(Callback):
             batch = self.get_first_batch()
             x, y = batch
 
-            print(self.ts_interpolation)
-            for t in self.ts_interpolation:
+            print("running interpolations for steps", self.ts_interpolation)
+            for t in tqdm(self.ts_interpolation):
                 image_rows = []
                 for i in range(self.n_images):
                     for j in range(i + 1, self.n_images):
@@ -344,7 +346,8 @@ class VisualizationCallback(Callback):
             t_start_to_images = {}
 
             # iterate through noise steps
-            for i, t_start in enumerate(self.ts):
+            print('Running reconstructions for steps: ', self.ts)
+            for i, t_start in tqdm(enumerate(self.ts)):
                 # images: (B, Ts, C, W, H)
                 # noisy_images: (B, C, W, H)
                 images, noisy_images = pl_module.diffuse_and_reconstruct_grid(

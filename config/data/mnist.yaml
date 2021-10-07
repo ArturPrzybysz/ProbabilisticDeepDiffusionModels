@@ -1,5 +1,6 @@
 name: MNIST
 batch_size: 128
+num_workers: 4
 transformation_kwargs:
   normalize: mnist
   crop: True

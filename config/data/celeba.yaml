@@ -1,5 +1,6 @@
 name: CelebA
 batch_size: 8
+num_workers: 4
 transformation_kwargs:
   normalize: oneone
   crop: True

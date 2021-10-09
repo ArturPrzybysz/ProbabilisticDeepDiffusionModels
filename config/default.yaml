@@ -19,3 +19,8 @@ engine:
 defaults:
   - model: unet_small_grey
   - data: mnist
+visualization:
+  run_every: 5
+  n_images: 2
+  n_random: 4
+  n_interpolations: 4

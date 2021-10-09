@@ -168,11 +168,27 @@ class Engine(pl.LightningModule):
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 
+    # ------------ Image generation endpoints ----------
+
+    @torch.no_grad()
     def sample_and_return_steps(
-        self, x_t, t_start, steps_to_return, mean_only=False, generator=None
+        self,
+        x_t,
+        t_start=None,
+        steps_to_return=(1,),
+        mean_only=False,
+        generator=None,
+        seed=None,
     ):
         """Returns shape [B, STEPS, C, W, H]"""
+        if t_start is None:
+            t_start = self.diffusion_steps
+        if generator is None:
+            generator = get_generator_if_specified(seed, device=self.device)
+
         assert all(t < t_start for t in steps_to_return)
+
+        self.eval()
 
         batch_size = x_t.shape[0]
         step_count = len(steps_to_return)
@@ -189,8 +205,6 @@ class Engine(pl.LightningModule):
                 current_step_idx += 1
 
         return output
-
-    # ------------ Image generation endpoints ----------
 
     @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None):
@@ -241,21 +255,36 @@ class Engine(pl.LightningModule):
         return np.concatenate(starting_noise, axis=0), np.concatenate(images, axis=0)
 
     @torch.no_grad()
-    def diffuse_and_reconstruct(self, x0, t, seed=None):
+    def get_noised_representation(self, x0, t=None, seed=None, generator=None):
         """Will apply forward process to x0 up to t steps and then reconstruct."""
-        self.eval()
-        generator = get_generator_if_specified(seed, device=self.device)
+        if t is None:
+            t = self.diffusion_steps
+        if generator is None:
+            generator = get_generator_if_specified(seed, device=self.device)
         x0 = x0.to(self.device)
         noise = torch.randn(
             x0.shape, generator=generator, device=self.device, dtype=x0.dtype
         )
-        x_t = self.get_q_t(x0, noise, t)
+        return self.get_q_t(x0, noise, t)
+
+    @torch.no_grad()
+    def diffuse_and_reconstruct(self, x0, t=None, seed=None):
+        """Will apply forward process to x0 up to t steps and then reconstruct."""
+        self.eval()
+        if t is None:
+            t = self.diffusion_steps
+        generator = get_generator_if_specified(seed, device=self.device)
+        x_t = self.get_noised_representation(x0, t, generator=generator)
         return self.sample_from_step(x_t.detach().clone(), t, generator=generator), x_t
 
     @torch.no_grad()
-    def diffuse_and_reconstruct_grid(self, x0, t_start, steps_to_return, seed=None):
+    def diffuse_and_reconstruct_grid(
+        self, x0, t_start=None, steps_to_return=(1,), seed=None
+    ):
         """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
         self.eval()
+        if t_start is None:
+            t_start = self.diffusion_steps
         generator = get_generator_if_specified(seed, device=self.device)
         x0 = x0.to(self.device)
         noise = torch.randn(

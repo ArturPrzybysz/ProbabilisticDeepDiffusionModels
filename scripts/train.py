@@ -52,7 +52,7 @@ def run_training(cfg: DictConfig):
     wandb.save("images/*/*/*/*.png")
 
     dataloader_train = get_dataloader(
-        download=True, train=True, num_workers=4, pin_memory=True, **cfg["data"]
+        train=True, pin_memory=True, **cfg["data"]
     )
 
     engine = Engine(cfg["model"], **cfg["engine"])
@@ -65,11 +65,14 @@ def run_training(cfg: DictConfig):
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
-            run_every=3,
             ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[
                 1:
             ],
+            ts_interpolation=np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[
+                1:
+            ],
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+            **cfg['visualization']
         )
     )
 

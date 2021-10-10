@@ -1,6 +1,6 @@
 # Run options
 import os
-from scripts.wait_for_gpu import wait_and_get_free_GPU_idx
+from .wait_for_gpu import wait_and_get_free_GPU_idx
 
 free_GPU_idx = wait_and_get_free_GPU_idx()
 os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(free_GPU_idx)

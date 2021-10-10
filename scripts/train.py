@@ -11,7 +11,7 @@ def free_GPUs():
     except:
         return [""]
     gpus = gpu_info["gpus"]
-    return [gpu["index"] for gpu in gpus if len(gpu["processes"]) == 0]
+    return [str(gpu["index"]) for gpu in gpus if len(gpu["processes"]) == 0]
 
 
 def wait_and_get_free_GPU_idx():

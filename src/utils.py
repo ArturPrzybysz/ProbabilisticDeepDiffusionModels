@@ -1,5 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
+import subprocess, json, time
 
 
 def mean_flat(tensor):
@@ -36,3 +37,25 @@ def get_generator_if_specified(seed=None, device="cpu"):
         generator = torch.Generator(device=device)
         generator.manual_seed(seed)
         return generator
+
+
+def free_GPUs():
+    try:
+        gpu_info = json.loads(subprocess.check_output(['gpustat', '--json']).decode("utf-8"))
+    except:
+        return [""]
+    gpus = gpu_info["gpus"]
+    return [str(gpu["index"]) for gpu in gpus if len(gpu["processes"]) == 0]
+
+
+def wait_and_get_free_GPU_idx():
+    i = 0
+    wait_seconds = 0.5
+    free_gpus_idx = free_GPUs()
+    while not any(free_gpus_idx):
+        if i % 10 == 0:
+            print(f'Waiting for GPU: {i * wait_seconds} seconds')
+        time.sleep(wait_seconds)
+        free_gpus_idx = free_GPUs()
+        i += 1
+    return free_gpus_idx

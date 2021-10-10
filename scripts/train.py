@@ -1,7 +1,11 @@
 # Run options
 import os
-import traceback
+from scripts.wait_for_gpu import wait_and_get_free_GPU_idx
 
+free_GPU_idx = wait_and_get_free_GPU_idx()
+os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(free_GPU_idx)
+
+import traceback
 import numpy as np
 
 import torch
@@ -66,11 +70,11 @@ def run_training(cfg: DictConfig):
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
             ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[
-                1:
-            ],
+               1:
+               ],
             ts_interpolation=np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[
-                1:
-            ],
+                             1:
+                             ],
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
             **cfg['visualization']
         )

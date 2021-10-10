@@ -1,20 +1,16 @@
-import subprocess
-import json
-import sys
-import time
+import subprocess, json, time
 
 
-def GPUs_free(required_gpu_count=1):
+def free_GPUs():
     gpu_info = json.loads(subprocess.check_output(['gpustat', '--json']).decode("utf-8"))
     gpus = gpu_info["gpus"]
-    free_gpus = [gpu for gpu in gpus if len(gpu["processes"]) == 0]
-    return len(free_gpus) >= required_gpu_count
+    return [gpu["index"] for gpu in gpus if len(gpu["processes"]) == 0]
 
 
-if __name__ == '__main__':
-    seconds_to_wait = 5
-
-    while not GPUs_free():
-        time.sleep(seconds_to_wait)
-
-    sys.exit(0)
+def wait_and_get_free_GPU_idx():
+    wait_seconds = 0.5
+    free_gpus_idx = free_GPUs()
+    while not any(free_gpus_idx):
+        time.sleep(wait_seconds)
+        free_gpus_idx = free_GPUs()
+    return free_gpus_idx

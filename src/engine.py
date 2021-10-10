@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from src.modules import get_model
 import numpy as np
 
+from src.modules.losses import discretized_gaussian_log_likelihood
 from src.utils import mean_flat, get_generator_if_specified
 
 
@@ -112,6 +113,9 @@ class Engine(pl.LightningModule):
             on_epoch=False,
             prog_bar=False,
         )
+
+        log_likelihood = discretized_gaussian_log_likelihood()
+
         return loss
 
     def compute_grad_norm(self, parameters, norm_type=2):

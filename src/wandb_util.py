@@ -1,5 +1,4 @@
 import os
-import torch
 import wandb
 import re
 

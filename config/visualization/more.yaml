@@ -1,0 +1,5 @@
+run_every: 5
+n_images: 4
+n_random: 4
+n_interpolation_steps: 10
+n_interpolation_pairs: 4

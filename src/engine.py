@@ -114,6 +114,8 @@ class Engine(pl.LightningModule):
         )
         return loss
 
+    # TODO: do some validation
+
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]

@@ -72,6 +72,9 @@ def get_transformations(
     if crop and train:
         transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
 
+    if crop and not train: # TODO: deterministic crop?
+        transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
+
     # to tensor
     transformations.append(transforms.ToTensor())
 

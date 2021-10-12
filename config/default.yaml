@@ -7,20 +7,8 @@ run_name: null
 trainer:
   max_epochs: 100
   accumulate_grad_batches: 1
-engine:
-  resolution: 32
-  optimizer_config:
-    lr: 1e-4
-  diffusion_steps: 1000
-  beta_start: null
-  beta_end: null
-  clip_while_generating: true
-  sigma_mode: beta
 defaults:
   - model: unet_small_grey
   - data: mnist
-visualization:
-  run_every: 5
-  n_images: 2
-  n_random: 4
-  n_interpolations: 4
+  - visualization: more
+  - engine: mnist

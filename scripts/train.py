@@ -25,11 +25,11 @@ def run_training(cfg: DictConfig):
         wandb.run.name = cfg["run_name"]
         wandb.run.save()
 
+
     cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
     with open(cfg_file, "w") as fh:
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
-    # TODO: will this work?
     wandb.config.update(cfg)
 
     callbacks = []
@@ -54,6 +54,9 @@ def run_training(cfg: DictConfig):
     dataloader_train = get_dataloader(
         train=True, pin_memory=True, **cfg["data"]
     )
+    dataloader_val = get_dataloader(
+        train=False, pin_memory=True, **cfg["data"]
+    )
 
     engine = Engine(cfg["model"], **cfg["engine"])
 
@@ -61,17 +64,27 @@ def run_training(cfg: DictConfig):
         num_vis_steps = 5
     else:
         num_vis_steps = 10
+    ts = np.linspace(0, engine.diffusion_steps,
+                     num=num_vis_steps + 1, dtype=int)[1:]
+    ts_interpolation = np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[1:]
     callbacks.append(
         VisualizationCallback(
             dataloader_train,
             img_path=os.path.join(wandb.run.dir, "images"),
-            ts=np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[
-                1:
-            ],
-            ts_interpolation=np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[
-                1:
-            ],
+            ts=ts,
+            ts_interpolation=ts_interpolation,
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+            **cfg['visualization']
+        )
+    )
+    callbacks.append(
+        VisualizationCallback(
+            dataloader_val,
+            img_path=os.path.join(wandb.run.dir, "images"),
+            ts=ts,
+            ts_interpolation=ts_interpolation,
+            normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+            img_prefix='val_',
             **cfg['visualization']
         )
     )
@@ -89,9 +102,10 @@ def run_training(cfg: DictConfig):
         # limit_test_batches=1,
         **cfg["trainer"],
     )
+        # TODO: validate every n epochs?
 
     try:
-        trainer.fit(engine, train_dataloader=dataloader_train)
+        trainer.fit(engine, train_dataloader=dataloader_train, val_dataloaders=dataloader_val)
     except Exception as e:
         # for some reason errors get truncated here, so need to catch and raise again
         # probably hydra's fault

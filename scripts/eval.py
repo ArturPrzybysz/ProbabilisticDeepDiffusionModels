@@ -10,7 +10,7 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
-from src.data.data import get_dataloader
+from src.datasets.data import get_dataloader
 from src.engine import Engine
 
 wandb.init(project="diffusion", entity="ddpm")
@@ -42,11 +42,7 @@ def run_training(cfg: DictConfig):
 
     wandb.save("*.ckpt")  # should keep it up to date
 
-
-    dataloader_train = get_dataloader(
-        train=True, pin_memory=True, **cfg["data"]
-    )
-
+    dataloader_train = get_dataloader(train=True, pin_memory=True, **cfg["data"])
 
     engine = Engine(cfg["model"], **cfg["engine"])
 

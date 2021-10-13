@@ -10,7 +10,7 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
-from src.data.data import get_dataloader
+from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
@@ -24,7 +24,6 @@ def run_training(cfg: DictConfig):
     if cfg["run_name"] is not None:
         wandb.run.name = cfg["run_name"]
         wandb.run.save()
-
 
     cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
     with open(cfg_file, "w") as fh:
@@ -51,12 +50,8 @@ def run_training(cfg: DictConfig):
     wandb.save("images/*/*/*.png")
     wandb.save("images/*/*/*/*.png")
 
-    dataloader_train = get_dataloader(
-        train=True, pin_memory=True, **cfg["data"]
-    )
-    dataloader_val = get_dataloader(
-        train=False, pin_memory=True, **cfg["data"]
-    )
+    dataloader_train = get_dataloader(train=True, pin_memory=True, **cfg["data"])
+    dataloader_val = get_dataloader(train=False, pin_memory=True, **cfg["data"])
 
     engine = Engine(cfg["model"], **cfg["engine"])
 
@@ -64,8 +59,7 @@ def run_training(cfg: DictConfig):
         num_vis_steps = 5
     else:
         num_vis_steps = 10
-    ts = np.linspace(0, engine.diffusion_steps,
-                     num=num_vis_steps + 1, dtype=int)[1:]
+    ts = np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[1:]
     ts_interpolation = np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[1:]
     callbacks.append(
         VisualizationCallback(
@@ -74,7 +68,7 @@ def run_training(cfg: DictConfig):
             ts=ts,
             ts_interpolation=ts_interpolation,
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
-            **cfg['visualization']
+            **cfg["visualization"],
         )
     )
     callbacks.append(
@@ -84,8 +78,8 @@ def run_training(cfg: DictConfig):
             ts=ts,
             ts_interpolation=ts_interpolation,
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
-            img_prefix='val_',
-            **cfg['visualization']
+            img_prefix="val_",
+            **cfg["visualization"],
         )
     )
 
@@ -102,10 +96,12 @@ def run_training(cfg: DictConfig):
         # limit_test_batches=1,
         **cfg["trainer"],
     )
-        # TODO: validate every n epochs?
+    # TODO: validate every n epochs?
 
     try:
-        trainer.fit(engine, train_dataloader=dataloader_train, val_dataloaders=dataloader_val)
+        trainer.fit(
+            engine, train_dataloader=dataloader_train, val_dataloaders=dataloader_val
+        )
     except Exception as e:
         # for some reason errors get truncated here, so need to catch and raise again
         # probably hydra's fault

@@ -10,7 +10,7 @@ if not os.path.exists(DESTINATION):
     os.mkdir(DESTINATION)
 
 for f in tqdm(os.listdir(SOURCE_PATH)):
-    if f.endswith('.jpg') or f.endswith('.png'):
+    if f.endswith(".jpg") or f.endswith(".png"):
         img = Image.open(os.path.join(SOURCE_PATH, f))
         img = img.resize((TARGET_RES, TARGET_RES))
         img.save(os.path.join(DESTINATION, f))

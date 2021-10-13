@@ -8,7 +8,7 @@ from pytorch_lightning import Callback
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
-from src.data.data import unnormalize
+from src.datasets.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
 import wandb
 
@@ -24,11 +24,11 @@ class VisualizationCallback(Callback):
         normalization=None,
         seed=1234,
         n_images=4,
-        n_random = 10,
-        n_interpolation_steps = 10,
-        n_interpolation_pairs = 5,
+        n_random=10,
+        n_interpolation_steps=10,
+        n_interpolation_pairs=5,
         same_class_interpolation=False,
-        img_prefix='',
+        img_prefix="",
     ):
         self.dataloader = dataloader
         self.img_path = img_path
@@ -58,11 +58,13 @@ class VisualizationCallback(Callback):
     def visualize_random(self, pl_module, mean_only=False):
         if mean_only:
             img_path = os.path.join(
-                self.img_path, f"{self.img_prefix}images_random_mean_{pl_module.current_epoch}"
+                self.img_path,
+                f"{self.img_prefix}images_random_mean_{pl_module.current_epoch}",
             )
         else:
             img_path = os.path.join(
-                self.img_path, f"{self.img_prefix}images_random_{pl_module.current_epoch}"
+                self.img_path,
+                f"{self.img_prefix}images_random_{pl_module.current_epoch}",
             )
 
         if not os.path.exists(img_path):
@@ -82,9 +84,7 @@ class VisualizationCallback(Callback):
         width = images.shape[3]
         height = images.shape[4]
         step_count = images.shape[1]
-        image_grid = np.ones(
-            (height * n_images, width * (step_count + 1), channels)
-        )
+        image_grid = np.ones((height * n_images, width * (step_count + 1), channels))
 
         # iterate through images
         for img_idx in range(n_images):
@@ -131,7 +131,8 @@ class VisualizationCallback(Callback):
 
     def visualize_random_grid(self, pl_module, mean_only=False):
         img_path = os.path.join(
-            self.img_path, f"{self.img_prefix}images_random_grid_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_random_grid_{pl_module.current_epoch}",
         )
         if not os.path.exists(img_path):
             os.mkdir(img_path)
@@ -171,7 +172,8 @@ class VisualizationCallback(Callback):
 
     def visualize_interpolation(self, pl_module):
         img_path = os.path.join(
-            self.img_path, f"{self.img_prefix}images_interpolation_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_interpolation_{pl_module.current_epoch}",
         )
 
         if not os.path.exists(img_path):
@@ -186,12 +188,12 @@ class VisualizationCallback(Callback):
                 image_rows = []
 
                 for i in range(self.n_interpolation_pairs):
-                    (x1, y1), (x2, y2), last_idx, last_class = self.get_img_pair(last_idx, last_class)
+                    (x1, y1), (x2, y2), last_idx, last_class = self.get_img_pair(
+                        last_idx, last_class
+                    )
                     x1 = torch.unsqueeze(x1, 0)
                     x2 = torch.unsqueeze(x2, 0)
-                    x_i0 = pl_module.get_noised_representation(
-                        x1, seed=self.seed, t=t
-                    )
+                    x_i0 = pl_module.get_noised_representation(x1, seed=self.seed, t=t)
                     x_j0 = pl_module.get_noised_representation(
                         x2, seed=self.seed + 1, t=t
                     )
@@ -201,7 +203,9 @@ class VisualizationCallback(Callback):
                         dtype=x_i0.dtype,
                     )
 
-                    for k, a in enumerate(np.linspace(0, 1, self.n_interpolation_steps)):
+                    for k, a in enumerate(
+                        np.linspace(0, 1, self.n_interpolation_steps)
+                    ):
                         x_0[k : k + 1] = (1 - a) * x_i0 + a * x_j0
 
                     if t == pl_module.diffusion_steps:
@@ -320,7 +324,8 @@ class VisualizationCallback(Callback):
 
     def visualize_reconstructions(self, pl_module):
         img_path = os.path.join(
-            self.img_path, f"{self.img_prefix}images_reconstruct_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_reconstruct_{pl_module.current_epoch}",
         )
 
         if not os.path.exists(img_path):
@@ -361,7 +366,9 @@ class VisualizationCallback(Callback):
                     )
 
     def visualize_reconstructions_grid(self, pl_module):
-        img_path = os.path.join(self.img_path, f"{self.img_prefix}images_grid_{pl_module.current_epoch}")
+        img_path = os.path.join(
+            self.img_path, f"{self.img_prefix}images_grid_{pl_module.current_epoch}"
+        )
         # image_count, step_count, image_shape, channels, width, height, target_image_shape = (None,) * 7
 
         if not os.path.exists(img_path):
@@ -378,7 +385,7 @@ class VisualizationCallback(Callback):
             t_start_to_images = {}
 
             # iterate through noise steps
-            print('Running reconstructions for steps: ', self.ts)
+            print("Running reconstructions for steps: ", self.ts)
             for i, t_start in tqdm(enumerate(self.ts)):
                 # images: (B, Ts, C, W, H)
                 # noisy_images: (B, C, W, H)
@@ -457,17 +464,22 @@ class VisualizationCallback(Callback):
 
                 # save image
                 path = os.path.join(
-                    img_path, f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}.png"
+                    img_path,
+                    f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}.png",
                 )
                 plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
                 images = wandb.Image(
-                    img, caption=f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}"
+                    img,
+                    caption=f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}",
                 )
                 wandb.log({f"{self.img_prefix}reconstructions_{img_idx}": images})
 
     def on_train_epoch_end(self, trainer, pl_module):
-        if self.run_every is not None and (pl_module.current_epoch + 1) % self.run_every == 0:
+        if (
+            self.run_every is not None
+            and (pl_module.current_epoch + 1) % self.run_every == 0
+        ):
             self.run_visualizations(pl_module)
 
     def on_train_end(self, trainer, pl_module):

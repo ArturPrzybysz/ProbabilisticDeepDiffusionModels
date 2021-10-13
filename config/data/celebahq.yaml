@@ -1,0 +1,7 @@
+name: CelebAHQ
+batch_size: 2
+num_workers: 4
+num_samples_per_epoch: 10000
+transformation_kwargs:
+  normalize: oneone
+  flip: True

@@ -4,18 +4,14 @@ import traceback
 
 from PIL import Image
 
-from hydra.utils import get_original_cwd, to_absolute_path
-
-
 import torch
 import wandb
 import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
-from src.data import get_dataloader
+from src.data.data import get_dataloader
 from src.engine import Engine
-from src.modules import get_model
 
 wandb.init(project="diffusion", entity="ddpm")
 

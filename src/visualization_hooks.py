@@ -2,14 +2,13 @@ import os
 
 import numpy as np
 import torch
-from PIL import Image
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 from pytorch_lightning import Callback
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
-from src.data import unnormalize
+from src.data.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
 import wandb
 

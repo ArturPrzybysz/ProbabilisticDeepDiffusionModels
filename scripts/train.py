@@ -10,7 +10,7 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
-from src.data import get_dataloader
+from src.data.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 

@@ -1,6 +1,7 @@
 # Run options
 import os
 
+import torch
 from PIL import Image
 
 import wandb
@@ -70,7 +71,8 @@ def sample(cfg: DictConfig):
             **original_cfg["visualization"],
         )
 
-    # TODO: engine to device??
+    if torch.cuda.is_available():
+        engine.cuda()
     ts = [engine.diffusion_steps - i for i in range(7)] \
          + [engine.diffusion_steps - i * 10 for i in range(1,6)] \
          + [int(engine.diffusion_steps / 2)]

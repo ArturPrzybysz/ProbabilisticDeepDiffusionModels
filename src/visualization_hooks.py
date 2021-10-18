@@ -443,34 +443,34 @@ class VisualizationCallback(Callback):
                         :,
                     ] = img_to_display
 
-                # plotting stuff
-                img = unnormalize(
-                    image_grid, normalize=self.normalization, clip=True, channel_dim=-1
-                )
-                plt.figure()
-                if channels == 1:
-                    plt.imshow(img, cmap="gray")
-                else:
-                    plt.imshow(img)
+            # plotting stuff
+            img = unnormalize(
+                image_grid, normalize=self.normalization, clip=True, channel_dim=-1
+            )
+            plt.figure()
+            if channels == 1:
+                plt.imshow(img, cmap="gray")
+            else:
+                plt.imshow(img)
 
-                plt.xticks(
-                    np.arange(0, (step_count + 2)) * width + width // 2,
-                    list(reversed(ts)) + ["0", "$x_0$"],
-                )
-                plt.xlabel("Denoising step")
+            plt.xticks(
+                np.arange(0, (step_count + 2)) * width + width // 2,
+                list(reversed(ts)) + ["0", "$x_0$"],
+            )
+            plt.xlabel("Denoising step")
 
                 # save image
-                path = os.path.join(
-                    img_path,
-                    f"{img_prefix}image_epoch_{pl_module.current_epoch}.png",
-                )
-                plt.savefig(path, bbox_inches="tight", pad_inches=0)
+            path = os.path.join(
+                img_path,
+                f"{img_prefix}image_epoch_{pl_module.current_epoch}.png",
+            )
+            plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
-                images = wandb.Image(
-                    img,
-                    caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
-                )
-                wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
+            images = wandb.Image(
+                img,
+                caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
+            )
+            wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
 
     def visualize_reconstructions_grid(self, pl_module):
         img_path = os.path.join(

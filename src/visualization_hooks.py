@@ -369,8 +369,8 @@ class VisualizationCallback(Callback):
         img_prefix = kwargs.get("img_prefix", self.img_prefix)
         if mean_only:
             img_prefix += "mean_"
-        n_images = kwargs.get("img_prefix", self.n_images)
-        ts = kwargs.get("img_prefix", self.ts)
+        n_images = kwargs.get("n_images", self.n_images)
+        ts = kwargs.get("ts", self.ts)
         ts = list(sorted(ts))
         t_start = ts[-1]
         img_path = os.path.join(

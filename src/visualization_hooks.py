@@ -365,6 +365,113 @@ class VisualizationCallback(Callback):
                         os.path.join(img_path, f"img_{i}_{t}_noise.png"),
                     )
 
+    def visualize_single_reconstructions(self, pl_module, mean_only=False, **kwargs):
+        img_prefix = kwargs.get("img_prefix", self.img_prefix)
+        if mean_only:
+            img_prefix += "mean_"
+        n_images = kwargs.get("img_prefix", self.n_images)
+        ts = kwargs.get("img_prefix", self.ts)
+        ts = list(sorted(ts))
+        t_start = ts[-1]
+        img_path = os.path.join(
+            self.img_path, f"{img_prefix}recon_path_t{t_start}_{pl_module.current_epoch}"
+        )
+
+        if not os.path.exists(img_path):
+            os.mkdir(img_path)
+            batch = self.get_first_batch()
+            x, _ = batch
+            x = x[: n_images]
+
+            channels = x.shape[1]
+            width = x.shape[2]
+            height = x.shape[3]
+            step_count = len(ts)
+
+
+            # iterate through noise steps
+            # images: (B, Ts, C, W, H)
+            # noisy_images: (B, C, W, H)
+            images, noisy_images = pl_module.diffuse_and_reconstruct_grid(
+                x, t_start, ts[:1] + [1], seed=self.seed, mean_only=mean_only
+            )
+
+            # initialize empty grid
+            image_grid = np.ones(
+                (height * n_images, width * (step_count + 2), channels)
+            )
+            # iterate through images
+            for img_idx in range(n_images):
+
+                # calculate column index
+                start_grid_col_nr = step_count - 1
+
+                # convert and reshape images
+                source_img = model_output_to_image_numpy(
+                    x[img_idx].detach().cpu().numpy()
+                )
+                noisy_img = model_output_to_image_numpy(
+                    noisy_images[img_idx].detach().cpu().numpy()
+                )
+
+                # starting image with noise
+                image_grid[
+                    height * (img_idx) : height * (img_idx + 1),
+                    width * start_grid_col_nr : width * (start_grid_col_nr + 1),
+                    :,
+                ] = noisy_img
+                # source image without noise
+                image_grid[
+                    height * img_idx : height * (img_idx + 1),
+                    width * (step_count + 1) : width * (step_count + 2),
+                    :,
+                ] = source_img
+
+                # all the denoising steps
+                for step in range(step_count - img_idx - 1, step_count):
+                    img_to_display = model_output_to_image_numpy(
+                        images[img_idx, step_count - step - 1]
+                        .detach()
+                        .cpu()
+                        .numpy()
+                    )
+
+                    l_border_idx = len(ts) - step + start_grid_col_nr
+                    image_grid[
+                        height * (img_idx) : height * (img_idx + 1),
+                        width * (l_border_idx) : width * (l_border_idx + 1),
+                        :,
+                    ] = img_to_display
+
+                # plotting stuff
+                img = unnormalize(
+                    image_grid, normalize=self.normalization, clip=True, channel_dim=-1
+                )
+                plt.figure()
+                if channels == 1:
+                    plt.imshow(img, cmap="gray")
+                else:
+                    plt.imshow(img)
+
+                plt.xticks(
+                    np.arange(0, (step_count + 2)) * width + width // 2,
+                    list(reversed(ts)) + ["0", "$x_0$"],
+                )
+                plt.xlabel("Denoising step")
+
+                # save image
+                path = os.path.join(
+                    img_path,
+                    f"{img_prefix}image_epoch_{pl_module.current_epoch}.png",
+                )
+                plt.savefig(path, bbox_inches="tight", pad_inches=0)
+
+                images = wandb.Image(
+                    img,
+                    caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
+                )
+                wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
+
     def visualize_reconstructions_grid(self, pl_module):
         img_path = os.path.join(
             self.img_path, f"{self.img_prefix}images_grid_{pl_module.current_epoch}"

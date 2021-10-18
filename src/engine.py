@@ -281,7 +281,7 @@ class Engine(pl.LightningModule):
 
     @torch.no_grad()
     def diffuse_and_reconstruct_grid(
-        self, x0, t_start=None, steps_to_return=(1,), seed=None
+        self, x0, t_start=None, steps_to_return=(1,), seed=None, mean_only=False
     ):
         """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
         self.eval()
@@ -295,7 +295,7 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t_start)
         return (
             self.sample_and_return_steps(
-                x_t.detach().clone(), t_start, steps_to_return, generator=generator
+                x_t.detach().clone(), t_start, steps_to_return, generator=generator, mean_only=mean_only
             ),
             x_t,
         )

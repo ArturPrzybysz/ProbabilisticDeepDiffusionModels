@@ -402,10 +402,6 @@ class VisualizationCallback(Callback):
             )
             # iterate through images
             for img_idx in range(n_images):
-
-                # calculate column index
-                start_grid_col_nr = step_count - 1
-
                 # convert and reshape images
                 source_img = model_output_to_image_numpy(
                     x[img_idx].detach().cpu().numpy()
@@ -417,7 +413,7 @@ class VisualizationCallback(Callback):
                 # starting image with noise
                 image_grid[
                     height * (img_idx) : height * (img_idx + 1),
-                    width * start_grid_col_nr : width * (start_grid_col_nr + 1),
+                    0 : width,
                     :,
                 ] = noisy_img
                 # source image without noise
@@ -428,15 +424,15 @@ class VisualizationCallback(Callback):
                 ] = source_img
 
                 # all the denoising steps
-                for step in range(step_count - img_idx - 1, step_count):
+                for step in range(step_count):
                     img_to_display = model_output_to_image_numpy(
-                        images[img_idx, step_count - step - 1]
+                        images[img_idx, step]
                         .detach()
                         .cpu()
                         .numpy()
                     )
 
-                    l_border_idx = len(ts) - step + start_grid_col_nr
+                    l_border_idx = step + 1
                     image_grid[
                         height * (img_idx) : height * (img_idx + 1),
                         width * (l_border_idx) : width * (l_border_idx + 1),

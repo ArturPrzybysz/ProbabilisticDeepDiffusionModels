@@ -372,6 +372,7 @@ class VisualizationCallback(Callback):
         n_images = kwargs.get("n_images", self.n_images)
         ts = kwargs.get("ts", self.ts)
         ts = list(sorted(ts))
+        print(ts)
         t_start = ts[-1]
         img_path = os.path.join(
             self.img_path, f"{img_prefix}recon_path_t{t_start}_{pl_module.current_epoch}"
@@ -393,7 +394,7 @@ class VisualizationCallback(Callback):
             # images: (B, Ts, C, W, H)
             # noisy_images: (B, C, W, H)
             images, noisy_images = pl_module.diffuse_and_reconstruct_grid(
-                x, t_start, ts[:1] + [1], seed=self.seed, mean_only=mean_only
+                x, t_start, ts[:-1] + [1], seed=self.seed, mean_only=mean_only
             )
 
             # initialize empty grid

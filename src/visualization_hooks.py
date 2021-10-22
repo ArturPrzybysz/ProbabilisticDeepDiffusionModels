@@ -23,7 +23,7 @@ def ema_fun(func):
             pl_module.ema.to(pl_module.device)
             with pl_module.ema.average_parameters():
                 result = func(self, pl_module, *args, **kwargs)
-            pl_module.ema.to('cpu')
+            # pl_module.ema.to('cpu')
             return result
         else:
             return func(self, pl_module, *args, **kwargs)
@@ -492,11 +492,16 @@ class VisualizationCallback(Callback):
             )
             plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
-            images = wandb.Image(
+            # images = wandb.Image(
+            #     img,
+            #     caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
+            # )
+            # wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
+
+            return wandb.Image(
                 img,
                 caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
             )
-            wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
 
     @ema_fun
     def visualize_reconstructions_grid(self, pl_module):

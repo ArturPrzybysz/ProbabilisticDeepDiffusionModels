@@ -62,6 +62,7 @@ class Engine(pl.LightningModule):
         # exponential moving average
         if ema is not None:
             self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
+            self.ema.to(self.device)
         else:
             self.ema = None
 
@@ -90,9 +91,9 @@ class Engine(pl.LightningModule):
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
         if self.ema:
-            self.ema.to(self.device)
+            # self.ema.to(self.device)
             self.ema.update()
-            self.ema.to('cpu')
+            # self.ema.to('cpu')
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)

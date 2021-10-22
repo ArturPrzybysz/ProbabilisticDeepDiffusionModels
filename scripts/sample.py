@@ -81,15 +81,28 @@ def sample(cfg: DictConfig):
         ts = [t for t in sorted(set(ts)) if t > 0]
         print(ts)
         engine.clip_while_generating = False
-        vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_no_clip_')
-        vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+        images = []
+        images.append(
+            vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+        )
+
+        images.append(
+            vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+        )
         #
         # vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_no_clip_')
         # vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_no_clip_')
 
         engine.clip_while_generating = True
-        vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_')
-        vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_')
+
+        images.append(
+            vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_')
+        )
+
+        images.append(
+            vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_')
+        )
+        wandb.log({f"recon_{t0}": images})
         #
         # vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_')
         # vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_')

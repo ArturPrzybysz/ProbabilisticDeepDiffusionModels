@@ -19,8 +19,12 @@ def ema_fun(func):
     def wrapper(self, pl_module, *args, **kwargs):
         if self.use_ema and pl_module.ema is not None:
             print("Using EMA parameters")
+
+            pl_module.ema.to(pl_module.device)
             with pl_module.ema.average_parameters():
-                return func(self, pl_module, *args, **kwargs)
+                result = func(self, pl_module, *args, **kwargs)
+            pl_module.ema.to('cpu')
+            return result
         else:
             return func(self, pl_module, *args, **kwargs)
     return wrapper

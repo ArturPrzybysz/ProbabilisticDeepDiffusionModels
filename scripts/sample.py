@@ -74,7 +74,7 @@ def sample(cfg: DictConfig):
     if torch.cuda.is_available():
         engine.cuda()
 
-    for t0 in [engine.diffusion_steps, int(engine.diffusion_steps/10), int(engine.diffusion_steps/5), int(engine.diffusion_steps/2)]:
+    for t0 in [engine.diffusion_steps, int(9*engine.diffusion_steps/10), int(4*engine.diffusion_steps/5), int(engine.diffusion_steps/2)]:
         ts = [t0 - i for i in range(7)] \
              + [t0 - i * 10 for i in range(1,6)] \
              + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]

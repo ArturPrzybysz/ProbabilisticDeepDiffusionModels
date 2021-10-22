@@ -399,7 +399,7 @@ class VisualizationCallback(Callback):
 
             # plot std. deviations to monitor scale
             for i, std in enumerate(stds):
-                wandb.log({f"{img_prefix}_std": std}, step=i)
+                wandb.log({f"{img_prefix}_std": std, "denoising_step": i})
 
             # initialize empty grid
             image_grid = np.ones(

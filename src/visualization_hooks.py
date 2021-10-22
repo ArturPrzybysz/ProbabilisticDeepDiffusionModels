@@ -393,9 +393,13 @@ class VisualizationCallback(Callback):
             # iterate through noise steps
             # images: (B, Ts, C, W, H)
             # noisy_images: (B, C, W, H)
-            images, noisy_images = pl_module.diffuse_and_reconstruct_grid(
-                x, t_start, ts[:-1] + [1], seed=self.seed, mean_only=mean_only
+            (images, stds), noisy_images = pl_module.diffuse_and_reconstruct_grid(
+                x, t_start, ts[:-1] + [1], seed=self.seed, mean_only=mean_only, return_stds=True
             )
+
+            # plot std. deviations to monitor scale
+            for i, std in enumerate(stds):
+                wandb.log({f"{img_prefix}_std": std}, step=i)
 
             # initialize empty grid
             image_grid = np.ones(

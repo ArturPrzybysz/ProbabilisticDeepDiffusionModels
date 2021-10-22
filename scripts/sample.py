@@ -73,24 +73,26 @@ def sample(cfg: DictConfig):
 
     if torch.cuda.is_available():
         engine.cuda()
-    ts = [engine.diffusion_steps - i for i in range(7)] \
-         + [engine.diffusion_steps - i * 10 for i in range(1,6)] \
-         + [int(engine.diffusion_steps / 2)]
-    ts = [t for t in sorted(set(ts)) if t > 0]
-    print(ts)
-    engine.clip_while_generating = False
-    vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix='val_no_clip_')
-    vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix='val_no_clip_')
 
-    vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix='no_clip_')
-    vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix='no_clip_')
+    for t0 in [engine.diffusion_steps, int(engine.diffusion_steps/10), int(engine.diffusion_steps/5), int(engine.diffusion_steps/2)]:
+        ts = [t0 - i for i in range(7)] \
+             + [t0 - i * 10 for i in range(1,6)] \
+             + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]
+        ts = [t for t in sorted(set(ts)) if t > 0]
+        print(ts)
+        engine.clip_while_generating = False
+        vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+        vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+        #
+        # vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_no_clip_')
+        # vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_no_clip_')
 
-    engine.clip_while_generating = True
-    vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts,)
-    vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts)
-
-    vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts)
-    vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts)
+        engine.clip_while_generating = True
+        vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_')
+        vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_')
+        #
+        # vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_')
+        # vis_train.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_')
 
     vis_val.run_visualizations(engine)
     vis_train.run_visualizations(engine)

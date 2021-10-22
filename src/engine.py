@@ -181,6 +181,7 @@ class Engine(pl.LightningModule):
         mean_only=False,
         generator=None,
         seed=None,
+        return_stds=False
     ):
         """Returns shape [B, STEPS, C, W, H]"""
         if t_start is None:
@@ -199,12 +200,21 @@ class Engine(pl.LightningModule):
         output = torch.zeros((batch_size, step_count) + image_shape)
         current_step_idx = 0
 
+        if return_stds:
+            stds = [torch.std(x_t).detach().cpu().item()]
+
         for t in range(t_start, 0, -1):
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
 
             if t in steps_to_return:
                 output[:, current_step_idx] = x_t
                 current_step_idx += 1
+
+            if return_stds:
+                stds.append(torch.std(x_t).detach().cpu().item())
+
+        if return_stds:
+            return output, stds
 
         return output
 
@@ -281,7 +291,7 @@ class Engine(pl.LightningModule):
 
     @torch.no_grad()
     def diffuse_and_reconstruct_grid(
-        self, x0, t_start=None, steps_to_return=(1,), seed=None, mean_only=False
+        self, x0, t_start=None, steps_to_return=(1,), seed=None, mean_only=False, return_stds=False
     ):
         """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
         self.eval()
@@ -295,7 +305,7 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t_start)
         return (
             self.sample_and_return_steps(
-                x_t.detach().clone(), t_start, steps_to_return, generator=generator, mean_only=mean_only
+                x_t.detach().clone(), t_start, steps_to_return, generator=generator, mean_only=mean_only, return_stds=return_stds
             ),
             x_t,
         )

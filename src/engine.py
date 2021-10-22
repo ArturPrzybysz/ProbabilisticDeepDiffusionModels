@@ -2,6 +2,7 @@ import math
 
 import torch
 import pytorch_lightning as pl
+from torch_ema import ExponentialMovingAverage
 
 from src.modules import get_model
 import numpy as np
@@ -48,6 +49,7 @@ class Engine(pl.LightningModule):
         sigma_mode="beta",
         resolution=32,
         clip_while_generating=True,
+        ema=None
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -56,6 +58,13 @@ class Engine(pl.LightningModule):
 
         # create the model here
         self.model = get_model(resolution, dict(model_config))
+
+        # exponential moving average
+        if ema is not None:
+            self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
+        else:
+            self.ema = None
+
         print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps
@@ -77,6 +86,11 @@ class Engine(pl.LightningModule):
         self.posterior_variance = (
             self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
+
+    def optimizer_step(self, *args, **kwargs):
+        super().optimizer_step(*args, **kwargs)
+        if self.ema:
+            self.ema.update()
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)

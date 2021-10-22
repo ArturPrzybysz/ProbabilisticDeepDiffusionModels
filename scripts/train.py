@@ -68,6 +68,7 @@ def run_training(cfg: DictConfig):
             ts=ts,
             ts_interpolation=ts_interpolation,
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+            use_ema=True,
             **cfg["visualization"],
         )
     )
@@ -78,6 +79,7 @@ def run_training(cfg: DictConfig):
             ts=ts,
             ts_interpolation=ts_interpolation,
             normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+            use_ema=True,
             img_prefix="val_",
             **cfg["visualization"],
         )

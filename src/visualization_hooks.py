@@ -11,7 +11,19 @@ from tqdm import tqdm
 from src.datasets.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
 import wandb
+from functools import wraps
 
+
+def ema_fun(func):
+    @wraps(func)
+    def wrapper(self, pl_module, *args, **kwargs):
+        if self.use_ema and pl_module.ema is not None:
+            print("Using EMA parameters")
+            with pl_module.ema.average_parameters():
+                return func(self, pl_module, *args, **kwargs)
+        else:
+            return func(self, pl_module, *args, **kwargs)
+    return wrapper
 
 class VisualizationCallback(Callback):
     def __init__(
@@ -29,6 +41,7 @@ class VisualizationCallback(Callback):
         n_interpolation_pairs=5,
         same_class_interpolation=False,
         img_prefix="",
+        use_ema=False,
     ):
         self.dataloader = dataloader
         self.img_path = img_path
@@ -45,6 +58,9 @@ class VisualizationCallback(Callback):
         self.seed = seed
         self.img_prefix = img_prefix
         self.same_class_interpolation = same_class_interpolation
+        self.use_ema = use_ema
+
+
 
     def run_visualizations(self, pl_module):
         # self.visualize_random(pl_module)
@@ -55,6 +71,7 @@ class VisualizationCallback(Callback):
         self.visualize_reconstructions_grid(pl_module)
         # self.visualize_reconstructions(pl_module)
 
+    @ema_fun
     def visualize_random(self, pl_module, mean_only=False):
         if mean_only:
             img_path = os.path.join(
@@ -129,6 +146,7 @@ class VisualizationCallback(Callback):
         images = wandb.Image(img, caption=f"{key}_epoch_{epoch}")
         wandb.log({key: images})
 
+    @ema_fun
     def visualize_random_grid(self, pl_module, mean_only=False):
         img_path = os.path.join(
             self.img_path,
@@ -170,6 +188,7 @@ class VisualizationCallback(Callback):
             d2 = self.dataloader.dataset[last_idx + 2]
             return d1, d2, last_idx + 2, last_class
 
+    @ema_fun
     def visualize_interpolation(self, pl_module):
         img_path = os.path.join(
             self.img_path,
@@ -322,6 +341,7 @@ class VisualizationCallback(Callback):
         images = wandb.Image(im, caption=f"{self.img_prefix}{key}_epoch_{epoch}")
         wandb.log({key: images})
 
+    @ema_fun
     def visualize_reconstructions(self, pl_module):
         img_path = os.path.join(
             self.img_path,
@@ -365,6 +385,7 @@ class VisualizationCallback(Callback):
                         os.path.join(img_path, f"img_{i}_{t}_noise.png"),
                     )
 
+    @ema_fun
     def visualize_single_reconstructions(self, pl_module, mean_only=False, **kwargs):
         img_prefix = kwargs.get("img_prefix", self.img_prefix)
         if mean_only:
@@ -473,6 +494,7 @@ class VisualizationCallback(Callback):
             )
             wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
 
+    @ema_fun
     def visualize_reconstructions_grid(self, pl_module):
         img_path = os.path.join(
             self.img_path, f"{self.img_prefix}images_grid_{pl_module.current_epoch}"

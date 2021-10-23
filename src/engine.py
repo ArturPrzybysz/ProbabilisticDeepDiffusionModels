@@ -65,7 +65,7 @@ class Engine(pl.LightningModule):
         if ema is not None:
             # self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
             # self.ema.to(self.device)
-            self.ema = Ema(self.original_model, decay=ema)
+            self.ema = Ema(self.model, decay=ema)
         else:
             self.ema = None
 

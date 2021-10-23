@@ -1,4 +1,5 @@
 import math
+from contextlib import contextmanager
 
 import torch
 import pytorch_lightning as pl
@@ -7,6 +8,7 @@ from torch_ema import ExponentialMovingAverage
 from src.modules import get_model
 import numpy as np
 
+from src.modules.ema import Ema
 from src.utils import mean_flat, get_generator_if_specified
 
 
@@ -61,8 +63,9 @@ class Engine(pl.LightningModule):
 
         # exponential moving average
         if ema is not None:
-            self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
-            self.ema.to(self.device)
+            # self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
+            # self.ema.to(self.device)
+            self.ema = Ema(self.original_model, decay=ema)
         else:
             self.ema = None
 
@@ -87,6 +90,19 @@ class Engine(pl.LightningModule):
         self.posterior_variance = (
             self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
+
+    @contextmanager
+    def ema_on(self):
+        if self.ema is None:
+            yield
+        else:
+            try:
+                self.original_model = self.model
+                self.model = self.ema
+                yield
+            finally:
+                self.model = self.original_model
+
 
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)

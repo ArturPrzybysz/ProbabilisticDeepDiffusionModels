@@ -108,7 +108,8 @@ class Engine(pl.LightningModule):
         super().optimizer_step(*args, **kwargs)
         if self.ema:
             # self.ema.to(self.device)
-            self.ema.update()
+            # self.ema.update()
+            self.ema.update(self.model)
             # self.ema.to('cpu')
 
     def configure_optimizers(self):

@@ -14,7 +14,7 @@ from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 from src.wandb_util import download_file
 
-wandb.init(project="diffusion", entity="ddpm")
+wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
 
 
 @hydra.main(config_path="../config", config_name="sample")

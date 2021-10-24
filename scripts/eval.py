@@ -13,7 +13,7 @@ from omegaconf import DictConfig, OmegaConf
 from src.datasets.data import get_dataloader
 from src.engine import Engine
 
-wandb.init(project="diffusion", entity="ddpm")
+wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
 
 
 @hydra.main(config_path="../config", config_name="default")

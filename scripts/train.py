@@ -14,7 +14,7 @@ from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
-wandb.init(project="diffusion", entity="ddpm")
+wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
 wandb.config.update({"script": "train"})
 
 
@@ -30,6 +30,7 @@ def run_training(cfg: DictConfig):
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
     wandb.config.update(cfg)
+    wandb.config.update({"machine": os.uname()[1]})
 
     callbacks = []
     callbacks.append(pl.callbacks.EarlyStopping(patience=10, monitor="loss"))

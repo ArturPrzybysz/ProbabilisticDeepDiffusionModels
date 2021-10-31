@@ -158,8 +158,8 @@ class Engine(pl.LightningModule):
         if update_loss_log:
             losses = loss.detach().cpu().numpy().tolist()
             ts = t.detach().cpu().numpy().tolist()
-            self.loss_per_t.update(ts, losses)
-            self.loss_per_t_epoch.update(ts, losses)
+            self.loss_per_t.update_multiple(ts, losses)
+            self.loss_per_t_epoch.update_multiple(ts, losses)
 
 
         # TODO: should batch be averaged or summed?

@@ -204,7 +204,6 @@ class VisualizationCallback(Callback):
             # x, y = batch
 
             print("running interpolations for steps", self.ts_interpolation)
-            images = []
             for t in tqdm(self.ts_interpolation):
                 last_idx = -1
                 last_class = None
@@ -292,14 +291,13 @@ class VisualizationCallback(Callback):
                     for j in range(self.n_interpolation_steps + 2)
                     if i % 2 == 0 or j == 0 or j == self.n_interpolation_steps + 1
                 ]
-                images.append(self.plot_grid(
+                self.plot_grid(
                     image_rows,
                     img_path,
                     key=f"{self.img_prefix}all_interpolations_{t}",
                     epoch=pl_module.current_epoch,
                     border=borders,
-                ))
-            wandb.log({f"{self.img_prefix}all_interpolations": images})
+                )
 
     def plot_grid(self, image_rows, path, key, epoch, border=tuple()):
         ncol = image_rows[0].shape[0]
@@ -343,9 +341,8 @@ class VisualizationCallback(Callback):
         plt.savefig(path, bbox_inches="tight", pad_inches=0.02)
 
         im = plt.imread(path)
-        # images = wandb.Image(im, caption=f"{self.img_prefix}{key}_epoch_{epoch}")
-        # wandb.log({key: images})
-        return wandb.Image(im, caption=f"{self.img_prefix}{key}_epoch_{epoch}")
+        images = wandb.Image(im, caption=f"{self.img_prefix}{key}_epoch_{epoch}")
+        wandb.log({key: images})
 
     @ema_fun
     def visualize_reconstructions(self, pl_module):
@@ -534,7 +531,7 @@ class VisualizationCallback(Callback):
                     x, t_start, self.ts[:i] + [1], seed=self.seed
                 )
                 t_start_to_images[t_start] = (images, noisy_images, x)
-            images = []
+
             # iterate through images
             for img_idx in range(self.n_images):
                 # initialize empty grid
@@ -610,12 +607,11 @@ class VisualizationCallback(Callback):
                 )
                 plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
-                images.append(wandb.Image(
+                images = wandb.Image(
                     img,
                     caption=f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}",
-                ))
-
-            wandb.log({f"{self.img_prefix}reconstructions": images})
+                )
+                wandb.log({f"{self.img_prefix}reconstructions_{img_idx}": images})
 
     def on_train_epoch_end(self, trainer, pl_module):
         if (

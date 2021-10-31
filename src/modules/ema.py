@@ -9,7 +9,7 @@ class Ema(nn.Module):
     def __init__(self, model, decay=0.9999, device=None):
         super(Ema, self).__init__()
         # make a copy of the model for accumulating moving average of weights
-        self.module = deepcopy(model)
+        self.module = model
         self.module.eval()
         self.decay = decay
         self.device = device  # perform ema on different device from model if set

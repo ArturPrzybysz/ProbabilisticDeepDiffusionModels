@@ -62,17 +62,17 @@ def run_training(cfg: DictConfig):
         num_vis_steps = 10
     ts = np.linspace(0, engine.diffusion_steps, num=num_vis_steps + 1, dtype=int)[1:]
     ts_interpolation = np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[1:]
-    callbacks.append(
-        VisualizationCallback(
-            dataloader_train,
-            img_path=os.path.join(wandb.run.dir, "images"),
-            ts=ts,
-            ts_interpolation=ts_interpolation,
-            normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
-            use_ema=True,
-            **cfg["visualization"],
-        )
-    )
+    # callbacks.append(
+    #     VisualizationCallback(
+    #         dataloader_train,
+    #         img_path=os.path.join(wandb.run.dir, "images"),
+    #         ts=ts,
+    #         ts_interpolation=ts_interpolation,
+    #         normalization=cfg["data"]["transformation_kwargs"].get("normalize"),
+    #         use_ema=True,
+    #         **cfg["visualization"],
+    #     )
+    # )
     callbacks.append(
         VisualizationCallback(
             dataloader_val,

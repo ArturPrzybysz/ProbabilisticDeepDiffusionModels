@@ -18,7 +18,7 @@ class StepwiseLog:
             self.metric_per_t[t] = self.metric_per_t[t][self.max_keep:]
 
         self.avg_per_step[t - 1] = np.mean(self.metric_per_t[t])
-        self.avg_sq_per_step[t - 1] = np.sqrt(np.mean(self.metric_per_t[t]**2))
+        self.avg_sq_per_step[t - 1] = np.sqrt(np.mean(np.power(self.metric_per_t[t], 2)))
         self.n_per_step[t - 1] += 1
 
     def update_multiple(self, ts, metrics):

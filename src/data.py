@@ -62,14 +62,14 @@ def get_dataloader(
 
 
 def get_transformations(
-    train=True, flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None
+    train=True, flip=False, crop=False, crop_size=32, crop_padding=2, normalize=None
 ):
     transformations = []
 
     if flip and train:
         transformations.append(transforms.RandomHorizontalFlip())
 
-    if crop and train:
+    if crop:
         transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
 
     # to tensor

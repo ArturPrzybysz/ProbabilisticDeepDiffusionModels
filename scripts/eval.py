@@ -4,8 +4,6 @@ import traceback
 
 from PIL import Image
 
-from hydra.utils import get_original_cwd, to_absolute_path
-
 
 import torch
 import wandb

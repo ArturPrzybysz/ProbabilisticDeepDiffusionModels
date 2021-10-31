@@ -85,8 +85,8 @@ def run_training(cfg: DictConfig):
         logger=logger,
         default_root_dir="training/logs",
         gpus=gpus,
-        # limit_train_batches=10,
-        # limit_test_batches=1,
+        limit_train_batches=10,
+        limit_test_batches=10,
         **cfg["trainer"],
     )
 

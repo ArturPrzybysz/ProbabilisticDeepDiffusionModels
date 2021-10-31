@@ -1,9 +1,11 @@
 """
-Helpers for various likelihood-based losses. These are copied from:
-https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/losses.py
+Helpers for various likelihood-based losses. These are ported from the original
+Ho et al. diffusion models codebase:
+https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/utils.py
 """
 
 import numpy as np
+
 import torch as th
 
 
@@ -29,11 +31,11 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
     ]
 
     return 0.5 * (
-            -1.0
-            + logvar2
-            - logvar1
-            + th.exp(logvar1 - logvar2)
-            + ((mean1 - mean2) ** 2) * th.exp(-logvar2)
+        -1.0
+        + logvar2
+        - logvar1
+        + th.exp(logvar1 - logvar2)
+        + ((mean1 - mean2) ** 2) * th.exp(-logvar2)
     )
 
 

@@ -99,7 +99,7 @@ class Engine(pl.LightningModule):
         else:
             try:
                 self.original_model = self.model
-                self.model = self.ema.model
+                self.model = self.ema.module
                 yield
             finally:
                 self.model = self.original_model

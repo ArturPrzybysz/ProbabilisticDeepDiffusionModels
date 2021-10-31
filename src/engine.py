@@ -197,10 +197,15 @@ class Engine(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, _ = batch
-        nll, vb, xstart_mse = self.calc_bpd_loop(x)
-        self.log('nll/test', nll, on_step=False, on_epoch=True)
-        self.log('vb/test', nll, on_step=False, on_epoch=True)
-        self.log('xstart_mse/test', nll, on_step=False, on_epoch=True)
+        nll_dict = self.calc_bpd_loop(x)
+
+        print(nll_dict)
+
+        self.log("total_bpd", nll_dict["total_bpd"], on_step=False, on_epoch=True)
+        self.log("prior_bpd", nll_dict["prior_bpd"], on_step=False, on_epoch=True)
+        self.log("vb", nll_dict["vb"], on_step=False, on_epoch=True)
+        self.log("xstart_mse", nll_dict["xstart_mse"], on_step=False, on_epoch=True)
+        self.log("mse", nll_dict["mse"], on_step=False, on_epoch=True)
 
     def calc_bpd_loop(self, x_start, clip_denoised=True, model_kwargs=None):
         """

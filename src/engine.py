@@ -175,7 +175,7 @@ class Engine(pl.LightningModule):
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
-        loss = self.get_loss(predicted_noise, noise, weights, t=t, update_loss_log=True)
+        loss = self.get_loss(predicted_noise, noise, weights=weights, t=t, update_loss_log=True)
 
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)

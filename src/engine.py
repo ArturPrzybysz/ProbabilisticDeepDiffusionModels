@@ -16,8 +16,6 @@ from src.sampling.uniform_sampler import UniformSampler
 from src.utils import mean_flat, get_generator_if_specified
 
 
-
-
 # TODO: what is this
 def alpha_bar(t):
     return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
@@ -106,6 +104,8 @@ class Engine(pl.LightningModule):
             self.sampler = UniformSampler(diffusion_steps=diffusion_steps)
         elif sampling == "importance":
             self.sampler = ImportanceSampler(diffusion_steps=diffusion_steps, loss_per_t=self.loss_per_t, min_counts=20)
+        else:
+            raise ValueError(f"Unknown sampling option: \"{sampling}\"")
 
     @contextmanager
     def ema_on(self):

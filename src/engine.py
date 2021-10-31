@@ -1,15 +1,21 @@
 import math
+from collections import defaultdict
 from contextlib import contextmanager
 
 import torch
 import pytorch_lightning as pl
-from torch_ema import ExponentialMovingAverage
+# from torch_ema import ExponentialMovingAverage
 
 from src.modules import get_model
 import numpy as np
 
 from src.modules.ema import Ema
+from src.modules.stepwise_log import StepwiseLog
+from src.sampling.importance_sampler import ImportanceSampler
+from src.sampling.uniform_sampler import UniformSampler
 from src.utils import mean_flat, get_generator_if_specified
+
+
 
 
 # TODO: what is this
@@ -51,6 +57,7 @@ class Engine(pl.LightningModule):
         sigma_mode="beta",
         resolution=32,
         clip_while_generating=True,
+        sampling="uniform",
         ema=None
     ):
         super(Engine, self).__init__()
@@ -92,6 +99,14 @@ class Engine(pl.LightningModule):
             self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
 
+        self.loss_per_t = StepwiseLog(diffusion_steps, 10)
+        self.loss_per_t_epoch = StepwiseLog(diffusion_steps)
+
+        if sampling == "uniform":
+            self.sampler = UniformSampler(diffusion_steps=diffusion_steps)
+        elif sampling == "importance":
+            self.sampler = ImportanceSampler(diffusion_steps=diffusion_steps, loss_per_t=self.loss_per_t, min_counts=20)
+
     @contextmanager
     def ema_on(self):
         if self.ema is None:
@@ -103,6 +118,19 @@ class Engine(pl.LightningModule):
                 yield
             finally:
                 self.model = self.original_model
+
+
+    def on_epoch_end(self) -> None:
+        # log loss per Q
+        for i in range(4):
+            self.log(
+                f"loss_q{i+1}",
+                self.loss_per_t_epoch.get_avg_in_range(max(1, int(i*self.diffusion_steps/4)),
+                                                       int((i+1)*self.diffusion_steps/4)),
+                on_step=False, on_epoch=True, prog_bar=False
+            )
+        self.loss_per_t_epoch.reset()
+
 
 
     def optimizer_step(self, *args, **kwargs):
@@ -125,18 +153,29 @@ class Engine(pl.LightningModule):
             * noise
         )
 
-    def get_loss(self, predicted_noise, target_noise):
+    def get_loss(self, predicted_noise, target_noise, t, weights=None, update_loss_log=True):
+        loss = mean_flat(torch.square(target_noise - predicted_noise))
+        if update_loss_log:
+            losses = loss.detach().cpu().numpy().tolist()
+            ts = t.detach().cpu().numpy().tolist()
+            self.loss_per_t.update(ts, losses)
+            self.loss_per_t_epoch.update(ts, losses)
+
+
         # TODO: should batch be averaged or summed?
-        return torch.mean(torch.square(target_noise - predicted_noise))
+        if weights is not None:
+            return torch.sum(weights * loss)
+        else:
+            return torch.mean(loss)
 
     def training_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
         batch_size = x.shape[0]
-        t = torch.randint(1, self.diffusion_steps, (batch_size,), device=self.device)
+        t, weights = self.sampler(batch_size, self.device)
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
-        loss = self.get_loss(predicted_noise, noise)
+        loss = self.get_loss(predicted_noise, noise, weights, t=t, update_loss_log=True)
 
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)

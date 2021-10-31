@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import torch
 import pytorch_lightning as pl
 # from torch_ema import ExponentialMovingAverage
+import wandb
 
 from src.modules import get_model
 import numpy as np
@@ -14,7 +15,7 @@ from src.modules.stepwise_log import StepwiseLog
 from src.sampling.importance_sampler import ImportanceSampler
 from src.sampling.uniform_sampler import UniformSampler
 from src.utils import mean_flat, get_generator_if_specified
-
+import matplotlib.pyplot as plt
 
 # TODO: what is this
 def alpha_bar(t):
@@ -129,8 +130,20 @@ class Engine(pl.LightningModule):
                                                        int((i+1)*self.diffusion_steps/4)),
                 on_step=False, on_epoch=True, prog_bar=False
             )
-        self.loss_per_t_epoch.reset()
 
+        plt.figure(figsize=(10,10))
+        plt.plot(self.loss_per_t_epoch.avg_per_step)
+        plt.xlabel("step")
+        plt.ylabel("L_t")
+        wandb.log({"loss_per_step": plt})
+
+        plt.figure(figsize=(10,10))
+        plt.plot(self.loss_per_t_epoch.n_per_step)
+        plt.xlabel("step")
+        plt.ylabel("n_samples")
+        wandb.log({"n_samples_per_step": plt})
+
+        self.loss_per_t_epoch.reset()
 
 
     def optimizer_step(self, *args, **kwargs):

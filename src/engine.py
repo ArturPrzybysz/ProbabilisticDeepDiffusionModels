@@ -122,6 +122,11 @@ class Engine(pl.LightningModule):
 
 
     def on_epoch_end(self) -> None:
+        if isinstance(self.sampler, ImportanceSampler):
+            print("self.sampler._ready: ", self.sampler._ready)
+            if not self.sampler._ready:
+                print(list(self.loss_per_t.n_per_step))
+
         # log loss per Q
         for i in range(4):
             self.log(

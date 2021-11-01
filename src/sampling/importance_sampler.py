@@ -16,6 +16,7 @@ class ImportanceSampler:
             return True
         else:
             if (self.loss_per_t.n_per_step >= self.min_counts).all():
+                print("ImportanceSampler is warmed up now")
                 self._ready = True
                 return True
             return False

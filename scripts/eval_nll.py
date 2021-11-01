@@ -45,7 +45,7 @@ def run_eval(cfg: DictConfig):
         default_root_dir="training/logs",
         gpus=gpus,
         # limit_train_batches=10,
-        limit_test_batches=1,
+        limit_test_batches=5,
         # **cfg["trainer"],
     )
 

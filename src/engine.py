@@ -73,6 +73,7 @@ class Engine(pl.LightningModule):
             # self.ema.to(self.device)
             # self.ema_model = get_model(resolution, dict(model_config))
             self.ema = Ema(self.model, decay=ema)
+            self.ema.set(self.model)
         else:
             self.ema = None
 

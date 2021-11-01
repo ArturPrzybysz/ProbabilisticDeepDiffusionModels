@@ -71,8 +71,8 @@ class Engine(pl.LightningModule):
         if ema is not None:
             # self.ema = ExponentialMovingAverage(self.model.parameters(), decay=ema)
             # self.ema.to(self.device)
-            self.ema_model = get_model(resolution, dict(model_config))
-            self.ema = Ema(self.ema_model, decay=ema)
+            # self.ema_model = get_model(resolution, dict(model_config))
+            self.ema = Ema(self.model, decay=ema)
         else:
             self.ema = None
 
@@ -193,13 +193,13 @@ class Engine(pl.LightningModule):
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         # log loss per Q
-        for i in range(4):
-            self.log(
-                f"running_loss_q{i+1}",
-                self.loss_per_t.get_avg_in_range(max(1, int(i*self.diffusion_steps/4)),
-                                                       int((i+1)*self.diffusion_steps/4)),
-                on_step=True, on_epoch=False, prog_bar=False
-            )
+        # for i in range(4):
+        #     self.log(
+        #         f"running_loss_q{i+1}",
+        #         self.loss_per_t.get_avg_in_range(max(1, int(i*self.diffusion_steps/4)),
+        #                                                int((i+1)*self.diffusion_steps/4)),
+        #         on_step=True, on_epoch=False, prog_bar=False
+        #     )
         self.log(
             "total_grad_norm_L2",
             total_norm,

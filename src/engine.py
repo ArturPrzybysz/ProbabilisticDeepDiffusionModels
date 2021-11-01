@@ -106,7 +106,7 @@ class Engine(pl.LightningModule):
         if sampling == "uniform":
             self.sampler = UniformSampler(diffusion_steps=diffusion_steps)
         elif sampling == "importance":
-            self.sampler = ImportanceSampler(diffusion_steps=diffusion_steps, loss_per_t=self.loss_per_t, min_counts=20)
+            self.sampler = ImportanceSampler(diffusion_steps=diffusion_steps, loss_per_t=self.loss_per_t, min_counts=10)
         else:
             raise ValueError(f"Unknown sampling option: \"{sampling}\"")
 

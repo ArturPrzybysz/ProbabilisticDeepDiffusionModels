@@ -14,8 +14,6 @@ from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
-wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
-wandb.config.update({"script": "train"})
 
 
 @hydra.main(config_path="../config", config_name="default")
@@ -116,4 +114,6 @@ def run_training(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
+    wandb.config.update({"script": "train"})
     run_training()

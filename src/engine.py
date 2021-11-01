@@ -201,8 +201,8 @@ class Engine(pl.LightningModule):
 
         print(nll_dict)
 
-        # self.log("total_bpd", nll_dict["total_bpd"], on_step=False, on_epoch=True)
-        # self.log("prior_bpd", nll_dict["prior_bpd"], on_step=False, on_epoch=True)
+        self.log("total_bpd", nll_dict["total_bpd"], on_step=False, on_epoch=True)
+        self.log("prior_bpd", nll_dict["prior_bpd"], on_step=False, on_epoch=True)
         self.log("vb", nll_dict["vb"], on_step=False, on_epoch=True)
         self.log("xstart_mse", nll_dict["xstart_mse"], on_step=False, on_epoch=True)
         self.log("mse", nll_dict["mse"], on_step=False, on_epoch=True)
@@ -256,11 +256,11 @@ class Engine(pl.LightningModule):
         prior_bpd = self._prior_bpd(x_start)
         total_bpd = vb.sum(dim=1) + prior_bpd
         return {
-            # "total_bpd": total_bpd.mean(dim=0),
-            # "prior_bpd": prior_bpd.mean(dim=0),
-            "vb": vb.mean(dim=0),
-            "xstart_mse": xstart_mse.mean(dim=0),
-            "mse": mse.mean(dim=0),
+            "total_bpd": total_bpd.mean(),
+            "prior_bpd": prior_bpd.mean(),
+            "vb": vb.mean(),
+            "xstart_mse": xstart_mse.mean(),
+            "mse": mse.mean(),
         }
 
     def _prior_bpd(self, x_start):
@@ -361,7 +361,8 @@ class Engine(pl.LightningModule):
         B, C = x.shape[:2]
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
-
+        # print("model_output.shape", model_output.shape)
+        # model_output = torch.randn([128, 1, 32, 32])
         model_variance, model_log_variance = (
             np.append(self.posterior_variance[1], self.betas[1:]),
             np.log(np.append(self.posterior_variance[1], self.betas[1:])),

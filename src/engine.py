@@ -256,11 +256,11 @@ class Engine(pl.LightningModule):
         prior_bpd = self._prior_bpd(x_start)
         total_bpd = vb.sum(dim=1) + prior_bpd
         return {
-            "total_bpd": total_bpd,
-            "prior_bpd": prior_bpd,
-            "vb": vb,
-            "xstart_mse": xstart_mse,
-            "mse": mse,
+            "total_bpd": total_bpd.mean(dim=0),
+            "prior_bpd": prior_bpd.mean(dim=0),
+            "vb": vb.mean(dim=0),
+            "xstart_mse": xstart_mse.mean(dim=0),
+            "mse": mse.mean(dim=0),
         }
 
     def _prior_bpd(self, x_start):

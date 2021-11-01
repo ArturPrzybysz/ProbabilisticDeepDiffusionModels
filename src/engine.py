@@ -9,6 +9,7 @@ import wandb
 
 from src.modules import get_model
 import numpy as np
+import pandas as pd
 
 from src.modules.ema import Ema
 from src.modules.stepwise_log import StepwiseLog
@@ -126,7 +127,7 @@ class Engine(pl.LightningModule):
         if isinstance(self.sampler, ImportanceSampler):
             print("self.sampler._ready: ", self.sampler._ready)
             if not self.sampler._ready:
-                print(list(self.loss_per_t.n_per_step))
+                print(pd.Series(self.loss_per_t.n_per_step).value_counts())
 
         # log loss per Q
         for i in range(4):

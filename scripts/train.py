@@ -89,6 +89,7 @@ def run_training(cfg: DictConfig):
     logger = pl.loggers.WandbLogger()
     logger.watch(engine)
 
+    print("DEVICES", torch.cuda.device_count())
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     trainer = pl.Trainer(
         callbacks=callbacks,

@@ -12,6 +12,7 @@ class Ema(nn.Module):
         # self.module = model
         self.module = deepcopy(model)
         self.module.eval()
+        self.module.requires_grad_(False)
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
         if self.device is not None:

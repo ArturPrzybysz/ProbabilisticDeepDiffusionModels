@@ -1,0 +1,11 @@
+#defaults:
+hydra:
+  run:
+    # Output directory for normal runs
+    dir: ./
+num_samples: 4
+black_white: true
+run_id: 18xuykdx
+defaults:
+  - model: unet_small_grey
+  - data: mnist

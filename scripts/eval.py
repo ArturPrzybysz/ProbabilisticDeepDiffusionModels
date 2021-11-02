@@ -20,8 +20,11 @@ from src.modules import get_model
 wandb.init(project="diffusion", entity="ddpm")
 
 
-@hydra.main(config_path="../config", config_name="default")
-def run_training(cfg: DictConfig):
+@hydra.main(config_path="../config", config_name="eval")
+def run_training(cfg: DictConfig, model_path=None):
+    if model_path:
+        """Use this for evaluation during the training by passing the path to the model.
+        Otherwise, model from the config will used, determined by the run id"""
 
     print(OmegaConf.to_yaml(cfg))
 
@@ -32,17 +35,6 @@ def run_training(cfg: DictConfig):
     # TODO: will this work?
     wandb.config.update(cfg)
 
-    callbacks = []
-    callbacks.append(pl.callbacks.EarlyStopping(patience=10, monitor="loss"))
-    callbacks.append(
-        pl.callbacks.ModelCheckpoint(
-            dirpath=wandb.run.dir,
-            monitor="loss",
-            filename="model",
-            verbose=True,
-            period=1,
-        )
-    )
 
     wandb.save("*.ckpt")  # should keep it up to date
 

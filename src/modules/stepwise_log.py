@@ -13,13 +13,14 @@ class StepwiseLog:
         self.n_per_step = np.zeros(self.diffusion_steps-1)
 
     def update(self, t, metric):
-        self.metric_per_t[t].append(metric)
-        if self.max_keep is not None and len(self.metric_per_t) > self.max_keep:
-            self.metric_per_t[t] = self.metric_per_t[t][self.max_keep:]
+        if not np.isnan(metric):
+            self.metric_per_t[t].append(metric)
+            if self.max_keep is not None and len(self.metric_per_t) > self.max_keep:
+                self.metric_per_t[t] = self.metric_per_t[t][self.max_keep:]
 
-        self.avg_per_step[t - 1] = np.mean(self.metric_per_t[t])
-        self.avg_sq_per_step[t - 1] = np.sqrt(np.mean(np.power(self.metric_per_t[t], 2)))
-        self.n_per_step[t - 1] += 1
+            self.avg_per_step[t - 1] = np.mean(self.metric_per_t[t])
+            self.avg_sq_per_step[t - 1] = np.sqrt(np.mean(np.power(self.metric_per_t[t], 2)))
+            self.n_per_step[t - 1] += 1
 
     def update_multiple(self, ts, metrics):
         for t, m in zip(ts, metrics):

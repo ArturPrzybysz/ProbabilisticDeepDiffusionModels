@@ -30,7 +30,9 @@ def run_training(cfg: DictConfig):
     wandb.config.update(cfg)
     wandb.config.update({"machine": os.uname()[1]})
 
-    validate_every = cfg["trainer"].get("check_val_every_n_epoch", 2)
+    validate_every = (cfg["trainer"]["check_val_every_n_epoch"]
+                      if "check_val_every_n_epoch" in cfg["trainer"]
+                      else 2)
 
     callbacks = []
     callbacks.append(pl.callbacks.EarlyStopping(patience=20, monitor="val_loss"))

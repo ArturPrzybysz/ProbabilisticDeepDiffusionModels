@@ -94,7 +94,7 @@ def run_training(cfg: DictConfig):
     print("DEVICES", torch.cuda.device_count())
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
 
-    cfg["trainer"]["check_val_every_n_epoch"] = validate_every
+    cfg.trainer.check_val_every_n_epoch = validate_every
     trainer = pl.Trainer(
         callbacks=callbacks,
         logger=logger,

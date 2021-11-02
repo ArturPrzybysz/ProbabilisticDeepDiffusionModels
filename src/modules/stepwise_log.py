@@ -13,7 +13,7 @@ class StepwiseLog:
         self.n_per_step = np.zeros(self.diffusion_steps-1)
 
     def update(self, t, metric):
-        if not np.isnan(metric):
+        if np.isfinite(metric):
             self.metric_per_t[t].append(metric)
             if self.max_keep is not None and len(self.metric_per_t) > self.max_keep:
                 self.metric_per_t[t] = self.metric_per_t[t][self.max_keep:]

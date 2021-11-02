@@ -16,50 +16,48 @@ from omegaconf import DictConfig, OmegaConf
 from src.data import get_dataloader
 from src.engine import Engine
 from src.modules import get_model
+from src.wandb_util import download_file
 
 wandb.init(project="diffusion", entity="ddpm")
 
 
 @hydra.main(config_path="../config", config_name="eval")
 def run_training(cfg: DictConfig, model_path=None):
+    print(OmegaConf.to_yaml(cfg))
+
     if model_path:
         """Use this for evaluation during the training by passing the path to the model.
         Otherwise, model from the config will used, determined by the run id"""
-
-    print(OmegaConf.to_yaml(cfg))
+    else:
+        checkpoint_path = download_file(cfg["run_id"], "model.ckpt")
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     with open(cfg_file, "w") as fh:
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
-    # TODO: will this work?
     wandb.config.update(cfg)
 
 
-    wandb.save("*.ckpt")  # should keep it up to date
-
-
+    engine = Engine.load_from_checkpoint(checkpoint_path)
     dataloader_train = get_dataloader(
-        train=True, pin_memory=True, **cfg["data"]
+        train=False, pin_memory=True, **cfg["data"]
     )
-
-
-    engine = Engine(cfg["model"], **cfg["engine"])
 
     logger = pl.loggers.WandbLogger()
     logger.watch(engine)
-
     gpus = 1 if torch.cuda.is_available() else 0
+
     trainer = pl.Trainer(
-        callbacks=callbacks,
         logger=logger,
         default_root_dir="training/logs",
         gpus=gpus,
-        **cfg["trainer"],
+        # limit_train_batches=10,
+        limit_test_batches=1,
+        # **cfg["trainer"],
     )
 
     try:
-        trainer.fit(engine, train_dataloader=dataloader_train)
+        trainer.test(engine, test_dataloaders=dataloader_train)
     except Exception as e:
         # for some reason errors get truncated here, so need to catch and raise again
         # probably hydra's fault
@@ -67,15 +65,6 @@ def run_training(cfg: DictConfig, model_path=None):
         print(e)
         traceback.print_exc(e)
         # raise e
-
-    # generate some images to check if it works
-    images = engine.generate_image(16)
-    img_path = os.path.join(wandb.run.dir, "images")
-    os.mkdir(img_path)
-    for i in range(16):
-        # TODO: handle channels
-        img = Image.fromarray(images[i, 0, :, :], "L")
-        img.save(os.path.join(img_path, f"img_{i}.png"))
 
 
 if __name__ == "__main__":
@@ -85,3 +74,12 @@ if __name__ == "__main__":
         print("Caught exception")
         print(e)
         traceback.print_exc(e)
+
+
+"""
+@hydra.main(config_path="../config", config_name="eval")
+def run_eval(cfg: DictConfig):
+
+
+if __name__ == '__main__':
+    run_eval()"""

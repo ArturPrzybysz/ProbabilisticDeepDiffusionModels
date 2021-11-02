@@ -1,6 +1,5 @@
 import torch
 
-
 class UniformSampler:
     def __init__(self, diffusion_steps):
         self.diffusion_steps = diffusion_steps

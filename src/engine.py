@@ -110,6 +110,8 @@ class Engine(pl.LightningModule):
         else:
             raise ValueError(f"Unknown sampling option: \"{sampling}\"")
 
+        self.val_sampler = UniformSampler(diffusion_steps=diffusion_steps)
+
     @contextmanager
     def ema_on(self):
         if self.ema is None:
@@ -216,7 +218,17 @@ class Engine(pl.LightningModule):
         )
         return loss
 
-    # TODO: do some validation
+
+    def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
+        x, y = batch
+        batch_size = x.shape[0]
+        t, weights = self.val_sampler(batch_size, self.device)
+        noise = torch.randn_like(x)
+        x_t = self.get_q_t(x, noise, t)
+        predicted_noise = self.model(x_t, t)
+        loss = self.get_loss(predicted_noise, noise, weights=weights, t=t, update_loss_log=False)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+
 
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):

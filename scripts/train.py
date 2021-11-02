@@ -30,9 +30,6 @@ def run_training(cfg: DictConfig):
     wandb.config.update(cfg)
     wandb.config.update({"machine": os.uname()[1]})
 
-    validate_every = (cfg["trainer"]["check_val_every_n_epoch"]
-                      if "check_val_every_n_epoch" in cfg["trainer"]
-                      else 2)
 
     callbacks = []
     callbacks.append(pl.callbacks.EarlyStopping(patience=20, monitor="val_loss"))
@@ -42,7 +39,7 @@ def run_training(cfg: DictConfig):
             monitor="val_loss",
             filename="model",
             verbose=True,
-            period=validate_every,
+            period=cfg.trainer.check_val_every_n_epoch,
         )
     )
 
@@ -94,7 +91,6 @@ def run_training(cfg: DictConfig):
     print("DEVICES", torch.cuda.device_count())
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
 
-    cfg.trainer.check_val_every_n_epoch = validate_every
     trainer = pl.Trainer(
         callbacks=callbacks,
         logger=logger,
@@ -104,7 +100,6 @@ def run_training(cfg: DictConfig):
         # limit_test_batches=1,
         **cfg["trainer"],
     )
-    # TODO: validate every n epochs?
 
     try:
         trainer.fit(

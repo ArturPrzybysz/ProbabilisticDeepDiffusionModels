@@ -7,6 +7,7 @@ run_name: null
 trainer:
   max_epochs: 100
   accumulate_grad_batches: 1
+  check_val_every_n_epoch: 2
 defaults:
   - model: unet_small_grey
   - data: mnist

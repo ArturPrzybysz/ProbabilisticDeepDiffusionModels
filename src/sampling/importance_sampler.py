@@ -28,6 +28,7 @@ class ImportanceSampler:
             indices = np.random.choice(self.diffusion_steps-1, size=(batch_size,), p=p)
             weights = 1 / (p[indices] * batch_size)
             t = torch.from_numpy(indices).long().to(device) + 1 # +1 because of 1 indexed t
+            weights = torch.from_numpy(weights).to(device)
             return t, weights
         else:
             t = torch.randint(1, self.diffusion_steps, (batch_size,), device=device)

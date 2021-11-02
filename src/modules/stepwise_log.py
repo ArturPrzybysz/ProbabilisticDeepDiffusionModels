@@ -8,9 +8,9 @@ class StepwiseLog:
 
     def reset(self):
         self.metric_per_t = {t: [] for t in range(1, self.diffusion_steps)}
-        self.avg_per_step = np.zeros(self.diffusion_steps)
-        self.avg_sq_per_step = np.zeros(self.diffusion_steps)
-        self.n_per_step = np.zeros(self.diffusion_steps)
+        self.avg_per_step = np.zeros(self.diffusion_steps-1)
+        self.avg_sq_per_step = np.zeros(self.diffusion_steps-1)
+        self.n_per_step = np.zeros(self.diffusion_steps-1)
 
     def update(self, t, metric):
         self.metric_per_t[t].append(metric)

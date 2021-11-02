@@ -198,7 +198,7 @@ class Engine(pl.LightningModule):
         loss = self.get_loss(predicted_noise, noise, weights=weights, t=t, update_loss_log=True)
 
         total_norm = self.compute_grad_norm(self.model.parameters())
-        self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        # self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         # log loss per Q
         # for i in range(4):
         #     self.log(

@@ -26,6 +26,7 @@ def init_wandb(cfg):
     if cfg["scheduler"]["scheduler_name"]:
         tags.append(cfg["scheduler"]["scheduler_name"])
 
+    tags.append("train")
 
     wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
     wandb.config.update({"script": "train"})

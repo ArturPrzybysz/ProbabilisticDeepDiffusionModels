@@ -32,6 +32,7 @@ def run_training(cfg: DictConfig):
 
 
     callbacks = []
+    callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='step'))
     callbacks.append(pl.callbacks.EarlyStopping(patience=20, monitor="val_loss"))
     callbacks.append(
         pl.callbacks.ModelCheckpoint(

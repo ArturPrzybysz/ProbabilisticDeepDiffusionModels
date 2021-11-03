@@ -13,3 +13,4 @@ defaults:
   - data: mnist
   - visualization: more
   - engine: mnist
+  - scheduler: none

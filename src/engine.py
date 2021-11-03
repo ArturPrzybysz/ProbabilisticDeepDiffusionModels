@@ -58,7 +58,9 @@ class Engine(pl.LightningModule):
         resolution=32,
         clip_while_generating=True,
         sampling="uniform",
-        ema=None
+        ema=None,
+        scheduler_name=None,
+        scheduler_kwargs=None
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -112,6 +114,9 @@ class Engine(pl.LightningModule):
 
         self.val_sampler = UniformSampler(diffusion_steps=diffusion_steps)
 
+        self.scheduler_name = scheduler_name
+        self.scheduler_kwargs = scheduler_kwargs
+
     @contextmanager
     def ema_on(self):
         if self.ema is None:
@@ -156,6 +161,7 @@ class Engine(pl.LightningModule):
 
 
     def optimizer_step(self, *args, **kwargs):
+        self._log_grad_norm()
         super().optimizer_step(*args, **kwargs)
         if self.ema:
             # self.ema.to(self.device)
@@ -163,8 +169,35 @@ class Engine(pl.LightningModule):
             self.ema.update(self.model)
             # self.ema.to('cpu')
 
+    def _log_grad_norm(self):
+        sqsum = 0.0
+        for p in self.model.parameters():
+            sqsum += (p.grad ** 2).sum().item()
+        self.log(
+            "grad_norm",
+            np.sqrt(sqsum),
+            on_step=True,
+            on_epoch=True,
+            prog_bar=False,
+        )
+
+
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), **self.optimizer_config)
+        optimizer = torch.optim.Adam(self.parameters(), **self.optimizer_config)
+        # Consider weight decay
+        # optimizer = torch.optim.AdamW(self.parameters(), **self.optimizer_config)
+        if self.scheduler_name:
+            scheduler_class = getattr(
+                torch.optim.lr_scheduler, self.scheduler_name
+            )
+            scheduler = scheduler_class(optimizer, **self.scheduler_kwargs)
+
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": scheduler
+            }
+        else:
+            return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
     # ------------ Training and diffusion stuff ----------
 

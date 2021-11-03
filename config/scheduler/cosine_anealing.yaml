@@ -1,0 +1,3 @@
+scheduler_name: CosineAnnealingWarmRestarts
+scheduler_kwargs:
+  T_0: 1000

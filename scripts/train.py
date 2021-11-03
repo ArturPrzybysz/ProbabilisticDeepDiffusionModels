@@ -14,14 +14,26 @@ from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 
+def init_wandb(cfg):
+    tags = []
+
+    tags.append(cfg["data"]["name"])
+    tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
+    effective_bs = cfg["data"]["batch_size"] * cfg["trainer"]["accumulate_grad_batches"]
+    tags.append(f'BS_{effective_bs}')
+    tags.append(f'BLCK_{cfg["model"]["num_res_blocks"]}')
+
+    wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
+    wandb.config.update({"script": "train"})
+
+    if cfg["run_name"] is not None:
+        wandb.run.name = cfg["run_name"]
+        wandb.run.save()
 
 
 @hydra.main(config_path="../config", config_name="default")
 def run_training(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
-    if cfg["run_name"] is not None:
-        wandb.run.name = cfg["run_name"]
-        wandb.run.save()
 
     cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
     with open(cfg_file, "w") as fh:
@@ -116,6 +128,4 @@ def run_training(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
-    wandb.config.update({"script": "train"})
     run_training()

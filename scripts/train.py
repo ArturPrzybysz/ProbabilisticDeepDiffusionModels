@@ -39,6 +39,7 @@ def init_wandb(cfg):
 @hydra.main(config_path="../config", config_name="default")
 def run_training(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
+    init_wandb(cfg)
 
     cfg_file = os.path.join(wandb.run.dir, "experiment_config.yaml")
     with open(cfg_file, "w") as fh:

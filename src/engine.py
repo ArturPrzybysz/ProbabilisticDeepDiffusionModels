@@ -297,3 +297,7 @@ class Engine(pl.LightningModule):
             ),
             x_t,
         )
+
+
+
+

@@ -54,7 +54,7 @@ def run_training(cfg: DictConfig):
     dataloader_train = get_dataloader(train=True, pin_memory=True, **cfg["data"])
     dataloader_val = get_dataloader(train=False, pin_memory=True, **cfg["data"])
 
-    engine = Engine(cfg["model"], **cfg["engine"])
+    engine = Engine(cfg["model"], **cfg["scheduler"], **cfg["engine"])
 
     if engine.diffusion_steps <= 30:
         num_vis_steps = 5

@@ -3,3 +3,4 @@ batch_size: 128
 num_workers: 4
 transformation_kwargs:
   normalize: oneone
+  flip: True

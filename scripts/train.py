@@ -21,7 +21,11 @@ def init_wandb(cfg):
     tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
     effective_bs = cfg["data"]["batch_size"] * cfg["trainer"]["accumulate_grad_batches"]
     tags.append(f'BS_{effective_bs}')
+    tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
     tags.append(f'BLCK_{cfg["model"]["num_res_blocks"]}')
+    if cfg["scheduler"]["scheduler_name"]:
+        tags.append(cfg["scheduler"]["scheduler_name"])
+
 
     wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
     wandb.config.update({"script": "train"})

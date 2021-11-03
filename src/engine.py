@@ -194,7 +194,7 @@ class Engine(pl.LightningModule):
 
             return {
                 "optimizer": optimizer,
-                "lr_scheduler": tr
+                "lr_scheduler": scheduler
             }
         else:
             return torch.optim.Adam(self.parameters(), **self.optimizer_config)

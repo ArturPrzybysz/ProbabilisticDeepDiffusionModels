@@ -13,20 +13,26 @@ from omegaconf import DictConfig, OmegaConf
 from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
+from src.wandb_util import download_file
+
 
 def init_wandb(cfg):
     tags = []
 
     tags.append(cfg["data"]["name"])
-    tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
     effective_bs = cfg["data"]["batch_size"] * cfg["trainer"]["accumulate_grad_batches"]
     tags.append(f'BS_{effective_bs}')
-    tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
-    tags.append(f'BLCK_{cfg["model"]["num_res_blocks"]}')
-    if cfg["scheduler"]["scheduler_name"]:
-        tags.append(cfg["scheduler"]["scheduler_name"])
 
     tags.append("train")
+    if cfg["cont_run"]:
+        tags.append("cont")
+    else:
+        tags.append(f'BLCK_{cfg["model"]["num_res_blocks"]}')
+        if cfg["scheduler"]["scheduler_name"]:
+            tags.append(cfg["scheduler"]["scheduler_name"])
+        tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
+        tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
+        tags.append(cfg["engine"]["mode"])
 
     wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
     wandb.config.update({"script": "train"})
@@ -72,7 +78,13 @@ def run_training(cfg: DictConfig):
     dataloader_train = get_dataloader(train=True, pin_memory=True, **cfg["data"])
     dataloader_val = get_dataloader(train=False, pin_memory=True, **cfg["data"])
 
-    engine = Engine(cfg["model"], **cfg["scheduler"], **cfg["engine"])
+
+    if cfg["cont_run"]:
+        checkpoint_path = download_file(cfg["cont_run"], "model.ckpt")
+        # TODO: allow override config ??
+        engine = Engine.load_from_checkpoint(checkpoint_path)
+    else:
+        engine = Engine(cfg["model"], **cfg["scheduler"], **cfg["engine"])
 
     if engine.diffusion_steps <= 30:
         num_vis_steps = 5

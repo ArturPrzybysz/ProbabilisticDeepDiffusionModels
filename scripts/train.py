@@ -33,6 +33,12 @@ def init_wandb(cfg):
         tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
         tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
         tags.append(cfg["engine"]["mode"])
+        if cfg["engine"].sampling == "importance":
+            tags.append("importance")
+
+    if "gradient_clip_val" in cfg["trainer"] and cfg["trainer"]["gradient_clip_val"] is not None:
+        tags.append("grad_clip")
+
 
     wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
     wandb.config.update({"script": "train"})

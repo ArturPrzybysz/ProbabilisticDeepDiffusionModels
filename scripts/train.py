@@ -33,9 +33,9 @@ def init_wandb(cfg):
         tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
         tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
         tags.append(cfg["engine"]["mode"])
-        if cfg["engine"].ema:
-            tags.append(f'EMA_{cfg["engine"].ema}")
-        if cfg["engine"].sampling == "importance":
+        if "ema" in cfg["engine"] and  cfg["engine"].ema:
+            tags.append(f'EMA_{cfg["engine"].ema}')
+        if "sampling" in cfg["engine"] and cfg["engine"].sampling == "importance":
             tags.append("importance")
 
     if "gradient_clip_val" in cfg["trainer"] and cfg["trainer"]["gradient_clip_val"] is not None:

@@ -1,0 +1,9 @@
+resolution: 256
+optimizer_config:
+  lr: 2e-5
+diffusion_steps: 1000
+beta_start: null
+beta_end: null
+clip_while_generating: true
+sigma_mode: beta
+mode: linear

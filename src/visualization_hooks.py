@@ -2,16 +2,32 @@ import os
 
 import numpy as np
 import torch
-from PIL import Image
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 from pytorch_lightning import Callback
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
-from src.data import unnormalize
+from src.datasets.data import unnormalize
 from src.utils import save_img, model_output_to_image_numpy
 import wandb
+from functools import wraps
+
+
+def ema_fun(func):
+    @wraps(func)
+    def wrapper(self, pl_module, *args, **kwargs):
+        if self.use_ema and pl_module.ema is not None:
+            print("Using EMA parameters")
+            # pl_module.ema.to(pl_module.device)
+            # with pl_module.ema.average_parameters():
+            with pl_module.ema_on():
+                result = func(self, pl_module, *args, **kwargs)
+            return result
+        else:
+            return func(self, pl_module, *args, **kwargs)
+
+    return wrapper
 
 
 class VisualizationCallback(Callback):
@@ -25,37 +41,50 @@ class VisualizationCallback(Callback):
         normalization=None,
         seed=1234,
         n_images=4,
-        n_random = 10,
-        n_interpolations = 10,
+        n_random=10,
+        n_interpolation_steps=10,
+        n_interpolation_pairs=5,
+        same_class_interpolation=False,
+        img_prefix="",
+        use_ema=False,
     ):
         self.dataloader = dataloader
         self.img_path = img_path
-        os.mkdir(self.img_path)
+        if not os.path.exists(self.img_path):
+            os.mkdir(self.img_path)
         self.run_every = run_every
         self.n_images = n_images
         self.n_random = n_random
-        self.n_interpolations = n_interpolations
+        self.n_interpolation_steps = n_interpolation_steps
+        self.n_interpolation_pairs = n_interpolation_pairs
         self.ts = list(sorted(ts))
         self.ts_interpolation = list(sorted(ts_interpolation))
         self.normalization = normalization
         self.seed = seed
+        self.img_prefix = img_prefix
+        self.same_class_interpolation = same_class_interpolation
+        self.use_ema = use_ema
 
     def run_visualizations(self, pl_module):
         # self.visualize_random(pl_module)
-        self.visualize_random_grid(pl_module)
+        if self.n_random > 0:
+            self.visualize_random_grid(pl_module)
         self.visualize_interpolation(pl_module)
         # self.visualize_random(pl_module, mean_only=True)
         self.visualize_reconstructions_grid(pl_module)
         # self.visualize_reconstructions(pl_module)
 
+    @ema_fun
     def visualize_random(self, pl_module, mean_only=False):
         if mean_only:
             img_path = os.path.join(
-                self.img_path, f"images_random_mean_{pl_module.current_epoch}"
+                self.img_path,
+                f"{self.img_prefix}images_random_mean_{pl_module.current_epoch}",
             )
         else:
             img_path = os.path.join(
-                self.img_path, f"images_random_{pl_module.current_epoch}"
+                self.img_path,
+                f"{self.img_prefix}images_random_{pl_module.current_epoch}",
             )
 
         if not os.path.exists(img_path):
@@ -70,16 +99,15 @@ class VisualizationCallback(Callback):
                 save_img(img, os.path.join(img_path, f"img_{i}.png"))
 
     def show_full_reconstruction(self, images, noise, img_path, epoch, key):
+        n_images = images.shape[0]
         channels = images.shape[2]
         width = images.shape[3]
         height = images.shape[4]
         step_count = images.shape[1]
-        image_grid = np.ones(
-            (height * self.n_random, width * (step_count + 1), channels)
-        )
+        image_grid = np.ones((height * n_images, width * (step_count + 1), channels))
 
         # iterate through images
-        for img_idx in range(self.n_random):
+        for img_idx in range(n_images):
             # starting noise
             noisy_img = model_output_to_image_numpy(noise[img_idx])
             image_grid[
@@ -121,9 +149,11 @@ class VisualizationCallback(Callback):
         images = wandb.Image(img, caption=f"{key}_epoch_{epoch}")
         wandb.log({key: images})
 
+    @ema_fun
     def visualize_random_grid(self, pl_module, mean_only=False):
         img_path = os.path.join(
-            self.img_path, f"images_random_grid_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_random_grid_{pl_module.current_epoch}",
         )
         if not os.path.exists(img_path):
             os.mkdir(img_path)
@@ -142,101 +172,129 @@ class VisualizationCallback(Callback):
         batch = [self.dataloader.dataset[i] for i in range(self.n_images)]
         return default_collate(batch)
 
+    def get_img_pair(self, last_idx=0, last_class=None):
+        if self.same_class_interpolation:
+            i = last_idx + 1
+            # get different class
+            while self.dataloader.dataset[i][1] == last_class:
+                i += 1
+            d1 = self.dataloader.dataset[i]
+            i += 1
+            new_class = d1[1]
+            # get another from the same
+            while self.dataloader.dataset[i][1] != new_class:
+                i += 1
+            d2 = self.dataloader.dataset[i]
+            return d1, d2, i, new_class
+        else:
+            d1 = self.dataloader.dataset[last_idx + 1]
+            d2 = self.dataloader.dataset[last_idx + 2]
+            return d1, d2, last_idx + 2, last_class
+
+    @ema_fun
     def visualize_interpolation(self, pl_module):
         img_path = os.path.join(
-            self.img_path, f"images_interpolation_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_interpolation_{pl_module.current_epoch}",
         )
 
         if not os.path.exists(img_path):
             os.mkdir(img_path)
-            batch = self.get_first_batch()
-            x, y = batch
+            # batch = self.get_first_batch()
+            # x, y = batch
 
             print("running interpolations for steps", self.ts_interpolation)
             for t in tqdm(self.ts_interpolation):
+                last_idx = -1
+                last_class = None
                 image_rows = []
-                for i in range(self.n_images):
-                    for j in range(i + 1, self.n_images):
-                        x_i0 = pl_module.get_noised_representation(
-                            x[i : i + 1], seed=self.seed + i, t=t
+
+                for i in range(self.n_interpolation_pairs):
+                    (x1, y1), (x2, y2), last_idx, last_class = self.get_img_pair(
+                        last_idx, last_class
+                    )
+                    x1 = torch.unsqueeze(x1, 0)
+                    x2 = torch.unsqueeze(x2, 0)
+                    x_i0 = pl_module.get_noised_representation(x1, seed=self.seed, t=t)
+                    x_j0 = pl_module.get_noised_representation(
+                        x2, seed=self.seed + 1, t=t
+                    )
+                    x_0 = torch.ones(
+                        [self.n_interpolation_steps] + list(x_i0.shape[1:]),
+                        device=pl_module.device,
+                        dtype=x_i0.dtype,
+                    )
+
+                    for k, a in enumerate(
+                        np.linspace(0, 1, self.n_interpolation_steps)
+                    ):
+                        x_0[k : k + 1] = (1 - a) * x_i0 + a * x_j0
+
+                    if t == pl_module.diffusion_steps:
+                        steps_to_return = self.ts[:-1] + [1]
+                    else:
+                        steps_to_return = [1]
+
+                    images = pl_module.sample_and_return_steps(
+                        x_0.detach().clone(),
+                        t_start=t,
+                        steps_to_return=steps_to_return,
+                        seed=self.seed,
+                    )
+                    img_row = images[:, -1].detach().cpu().numpy()
+                    xi_npy = x1.detach().cpu().numpy()
+                    xj_npy = x2.detach().cpu().numpy()
+                    img_row = np.concatenate(
+                        [
+                            xi_npy,
+                            img_row,
+                            xj_npy,
+                        ],
+                        axis=0,
+                    )
+
+                    originals_row = np.concatenate(
+                        [
+                            np.ones_like(xi_npy),
+                            x_0.detach().cpu().numpy(),
+                            np.ones_like(xi_npy),
+                        ],
+                        axis=0,
+                    )
+                    image_rows.append(originals_row)
+                    image_rows.append(img_row)
+
+                    if t == pl_module.diffusion_steps:
+                        reference_column = np.ones(
+                            [self.n_interpolation_steps, 1] + list(x_i0.shape[1:])
                         )
-                        x_j0 = pl_module.get_noised_representation(
-                            x[j : j + 1], seed=self.seed + j, t=t
-                        )
-                        x_0 = torch.ones(
-                            [self.n_interpolations] + list(x_i0.shape[1:]),
-                            device=pl_module.device,
-                            dtype=x_i0.dtype,
-                        )
+                        reference_column[0:1, 0] = xi_npy
+                        reference_column[-1 : self.n_interpolation_steps, 0] = xj_npy
 
-                        for k, a in enumerate(np.linspace(0, 1, self.n_interpolations)):
-                            x_0[k : k + 1] = (1 - a) * x_i0 + a * x_j0
-
-                        if t == pl_module.diffusion_steps:
-                            steps_to_return = self.ts[:-1] + [1]
-                        else:
-                            steps_to_return = [1]
-
-                        images = pl_module.sample_and_return_steps(
-                            x_0.detach().clone(),
-                            t_start=t,
-                            steps_to_return=steps_to_return,
-                            seed=self.seed,
-                        )
-                        img_row = images[:, -1].detach().cpu().numpy()
-                        xi_npy = x[i : i + 1].detach().cpu().numpy()
-                        xj_npy = x[j : j + 1].detach().cpu().numpy()
-                        img_row = np.concatenate(
-                            [
-                                xi_npy,
-                                img_row,
-                                xj_npy,
-                            ],
-                            axis=0,
+                        images = np.concatenate(
+                            [images.detach().cpu().numpy(), reference_column],
+                            axis=1,
                         )
 
-                        originals_row = np.concatenate(
-                            [
-                                np.ones_like(xi_npy),
-                                x_0.detach().cpu().numpy(),
-                                np.ones_like(xi_npy),
-                            ],
-                            axis=0,
+                        self.show_full_reconstruction(
+                            images,
+                            x_0.detach().cpu().numpy(),
+                            img_path,
+                            pl_module.current_epoch,
+                            key=f"{self.img_prefix}interpolation_{i}",
                         )
-                        image_rows.append(originals_row)
-                        image_rows.append(img_row)
-
-                        if t == pl_module.diffusion_steps:
-                            reference_column = np.ones(
-                                [self.n_interpolations, 1] + list(x_i0.shape[1:])
-                            )
-                            reference_column[0:1, 0] = xi_npy
-                            reference_column[-1 : self.n_interpolations, 0] = xj_npy
-
-                            images = np.concatenate(
-                                [images.detach().cpu().numpy(), reference_column],
-                                axis=1,
-                            )
-
-                            self.show_full_reconstruction(
-                                images,
-                                x_0.detach().cpu().numpy(),
-                                img_path,
-                                pl_module.current_epoch,
-                                key=f"interpolation_{i}_{j}",
-                            )
 
                 # choose which images should have red border
                 borders = [
                     (i, j)
                     for i in range(len(image_rows))
-                    for j in range(self.n_interpolations + 2)
-                    if i % 2 == 0 or j == 0 or j == self.n_interpolations + 1
+                    for j in range(self.n_interpolation_steps + 2)
+                    if i % 2 == 0 or j == 0 or j == self.n_interpolation_steps + 1
                 ]
                 self.plot_grid(
                     image_rows,
                     img_path,
-                    key=f"all_interpolations_{t}",
+                    key=f"{self.img_prefix}all_interpolations_{t}",
                     epoch=pl_module.current_epoch,
                     border=borders,
                 )
@@ -279,16 +337,18 @@ class VisualizationCallback(Callback):
                     ax.axis("off")
 
         # save image
-        path = os.path.join(path, f"{key}_epoch_{epoch}.png")
+        path = os.path.join(path, f"{self.img_prefix}{key}_epoch_{epoch}.png")
         plt.savefig(path, bbox_inches="tight", pad_inches=0.02)
 
         im = plt.imread(path)
-        images = wandb.Image(im, caption=f"{key}_epoch_{epoch}")
+        images = wandb.Image(im, caption=f"{self.img_prefix}{key}_epoch_{epoch}")
         wandb.log({key: images})
 
+    @ema_fun
     def visualize_reconstructions(self, pl_module):
         img_path = os.path.join(
-            self.img_path, f"images_reconstruct_{pl_module.current_epoch}"
+            self.img_path,
+            f"{self.img_prefix}images_reconstruct_{pl_module.current_epoch}",
         )
 
         if not os.path.exists(img_path):
@@ -328,8 +388,127 @@ class VisualizationCallback(Callback):
                         os.path.join(img_path, f"img_{i}_{t}_noise.png"),
                     )
 
+    @ema_fun
+    def visualize_single_reconstructions(self, pl_module, mean_only=False, **kwargs):
+        img_prefix = kwargs.get("img_prefix", self.img_prefix)
+        if mean_only:
+            img_prefix += "mean_"
+        n_images = kwargs.get("n_images", self.n_images)
+        ts = kwargs.get("ts", self.ts)
+        ts = list(sorted(ts))
+        print(ts)
+        t_start = ts[-1]
+        img_path = os.path.join(
+            self.img_path,
+            f"{img_prefix}recon_path_t{t_start}_{pl_module.current_epoch}",
+        )
+
+        if not os.path.exists(img_path):
+            os.mkdir(img_path)
+            batch = self.get_first_batch()
+            x, _ = batch
+            x = x[:n_images]
+
+            channels = x.shape[1]
+            width = x.shape[2]
+            height = x.shape[3]
+            step_count = len(ts)
+
+            # iterate through noise steps
+            # images: (B, Ts, C, W, H)
+            # noisy_images: (B, C, W, H)
+            (images, stds), noisy_images = pl_module.diffuse_and_reconstruct_grid(
+                x,
+                t_start,
+                ts[:-1] + [1],
+                seed=self.seed,
+                mean_only=mean_only,
+                return_stds=True,
+            )
+
+            # plot std. deviations to monitor scale
+            for i, std in enumerate(stds):
+                wandb.log({f"{img_prefix}_std": std, "denoising_step": i})
+
+            # initialize empty grid
+            image_grid = np.ones(
+                (height * n_images, width * (step_count + 2), channels)
+            )
+            # iterate through images
+            for img_idx in range(n_images):
+                # convert and reshape images
+                source_img = model_output_to_image_numpy(
+                    x[img_idx].detach().cpu().numpy()
+                )
+                noisy_img = model_output_to_image_numpy(
+                    noisy_images[img_idx].detach().cpu().numpy()
+                )
+
+                # starting image with noise
+                image_grid[
+                    height * (img_idx) : height * (img_idx + 1),
+                    0:width,
+                    :,
+                ] = noisy_img
+                # source image without noise
+                image_grid[
+                    height * img_idx : height * (img_idx + 1),
+                    width * (step_count + 1) : width * (step_count + 2),
+                    :,
+                ] = source_img
+
+                # all the denoising steps
+                for step in range(step_count):
+                    img_to_display = model_output_to_image_numpy(
+                        images[img_idx, step].detach().cpu().numpy()
+                    )
+
+                    l_border_idx = step + 1
+                    image_grid[
+                        height * (img_idx) : height * (img_idx + 1),
+                        width * (l_border_idx) : width * (l_border_idx + 1),
+                        :,
+                    ] = img_to_display
+
+            # plotting stuff
+            img = unnormalize(
+                image_grid, normalize=self.normalization, clip=True, channel_dim=-1
+            )
+            plt.figure()
+            if channels == 1:
+                plt.imshow(img, cmap="gray")
+            else:
+                plt.imshow(img)
+
+            plt.xticks(
+                np.arange(0, (step_count + 2)) * width + width // 2,
+                list(reversed(ts)) + ["0", "$x_0$"],
+            )
+            plt.xlabel("Denoising step")
+
+            # save image
+            path = os.path.join(
+                img_path,
+                f"{img_prefix}image_epoch_{pl_module.current_epoch}.png",
+            )
+            plt.savefig(path, bbox_inches="tight", pad_inches=0)
+
+            # images = wandb.Image(
+            #     img,
+            #     caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
+            # )
+            # wandb.log({f"{img_prefix}reconstruction_paths_t{t_start}": images})
+
+            return wandb.Image(
+                img,
+                caption=f"{img_prefix}reconstruction_paths_t{t_start}_e{pl_module.current_epoch}",
+            )
+
+    @ema_fun
     def visualize_reconstructions_grid(self, pl_module):
-        img_path = os.path.join(self.img_path, f"images_grid_{pl_module.current_epoch}")
+        img_path = os.path.join(
+            self.img_path, f"{self.img_prefix}images_grid_{pl_module.current_epoch}"
+        )
         # image_count, step_count, image_shape, channels, width, height, target_image_shape = (None,) * 7
 
         if not os.path.exists(img_path):
@@ -346,7 +525,7 @@ class VisualizationCallback(Callback):
             t_start_to_images = {}
 
             # iterate through noise steps
-            print('Running reconstructions for steps: ', self.ts)
+            print("Running reconstructions for steps: ", self.ts)
             for i, t_start in tqdm(enumerate(self.ts)):
                 # images: (B, Ts, C, W, H)
                 # noisy_images: (B, C, W, H)
@@ -425,17 +604,22 @@ class VisualizationCallback(Callback):
 
                 # save image
                 path = os.path.join(
-                    img_path, f"image_{img_idx}_epoch_{pl_module.current_epoch}.png"
+                    img_path,
+                    f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}.png",
                 )
                 plt.savefig(path, bbox_inches="tight", pad_inches=0)
 
                 images = wandb.Image(
-                    img, caption=f"image_{img_idx}_epoch_{pl_module.current_epoch}"
+                    img,
+                    caption=f"{self.img_prefix}image_{img_idx}_epoch_{pl_module.current_epoch}",
                 )
-                wandb.log({f"reconstructions_{img_idx}": images})
+                wandb.log({f"{self.img_prefix}reconstructions_{img_idx}": images})
 
     def on_train_epoch_end(self, trainer, pl_module):
-        if self.run_every is not None and (pl_module.current_epoch + 1) % self.run_every == 0:
+        if (
+            self.run_every is not None
+            and (pl_module.current_epoch + 1) % self.run_every == 0
+        ):
             self.run_visualizations(pl_module)
 
     def on_train_end(self, trainer, pl_module):

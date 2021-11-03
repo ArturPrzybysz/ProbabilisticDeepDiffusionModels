@@ -6,7 +6,6 @@ from PIL import Image
 
 from hydra.utils import get_original_cwd, to_absolute_path
 
-
 import torch
 import wandb
 import hydra
@@ -36,7 +35,6 @@ def run_training(cfg: DictConfig, model_path=None):
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
     wandb.config.update(cfg)
-
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
     dataloader_train = get_dataloader(
@@ -74,7 +72,6 @@ if __name__ == "__main__":
         print("Caught exception")
         print(e)
         traceback.print_exc(e)
-
 
 """
 @hydra.main(config_path="../config", config_name="eval")

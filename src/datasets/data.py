@@ -8,6 +8,8 @@ from six.moves import urllib
 from paths import DATA_DIR
 import numpy as np
 
+from src.datasets.celebahq import CelebAHQDataset
+
 opener = urllib.request.build_opener()
 opener.addheaders = [("User-agent", "Mozilla/5.0")]
 urllib.request.install_opener(opener)
@@ -36,28 +38,37 @@ def get_dataloader(
     transformation_kwargs=None,
     num_samples_per_epoch=None,
 ):
-    dataset = getattr(datasets, name)
-
     if transformation_kwargs is None:
         transformation_kwargs = {}
     transform = get_transformations(train=train, **transformation_kwargs)
 
-    dir = DATA_DIR / f"{name.lower()}_data"
-    if name in SPLIT_NAMES:
-        split = SPLIT_NAMES[name][train]
-        dataset = dataset(dir, split=split, download=download, transform=transform)
+    if name.lower() == "celebahq":
+        dataset = CelebAHQDataset(train=train, transform=transform)
     else:
-        dataset = dataset(dir, train=train, download=download, transform=transform)
+        dataset = getattr(datasets, name)
+        dir = DATA_DIR / f"{name.lower()}_data"
+        if name in SPLIT_NAMES:
+            split = SPLIT_NAMES[name][train]
+            dataset = dataset(dir, split=split, download=download, transform=transform)
+        else:
+            dataset = dataset(dir, train=train, download=download, transform=transform)
 
     if num_samples_per_epoch is not None:
         shuffle = False
-        sampler = RandomSampler(dataset, num_samples=num_samples_per_epoch, replacement=True)
+        sampler = RandomSampler(
+            dataset, num_samples=num_samples_per_epoch, replacement=True
+        )
     else:
         shuffle = train
         sampler = None
 
     return DataLoader(
-        dataset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle, sampler=sampler,
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        sampler=sampler,
+        pin_memory=pin_memory,
     )
 
 
@@ -70,6 +81,9 @@ def get_transformations(
         transformations.append(transforms.RandomHorizontalFlip())
 
     if crop and train:
+        transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
+
+    if crop and not train:  # TODO: deterministic crop?
         transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
 
     # to tensor

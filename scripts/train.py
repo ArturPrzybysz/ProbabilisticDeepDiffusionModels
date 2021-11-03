@@ -33,6 +33,8 @@ def init_wandb(cfg):
         tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
         tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
         tags.append(cfg["engine"]["mode"])
+        if cfg["engine"].ema:
+            tags.append(f'EMA_{cfg["engine"].ema}")
         if cfg["engine"].sampling == "importance":
             tags.append("importance")
 

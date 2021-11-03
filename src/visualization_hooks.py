@@ -26,7 +26,9 @@ def ema_fun(func):
             return result
         else:
             return func(self, pl_module, *args, **kwargs)
+
     return wrapper
+
 
 class VisualizationCallback(Callback):
     def __init__(
@@ -62,8 +64,6 @@ class VisualizationCallback(Callback):
         self.img_prefix = img_prefix
         self.same_class_interpolation = same_class_interpolation
         self.use_ema = use_ema
-
-
 
     def run_visualizations(self, pl_module):
         # self.visualize_random(pl_module)
@@ -399,26 +399,31 @@ class VisualizationCallback(Callback):
         print(ts)
         t_start = ts[-1]
         img_path = os.path.join(
-            self.img_path, f"{img_prefix}recon_path_t{t_start}_{pl_module.current_epoch}"
+            self.img_path,
+            f"{img_prefix}recon_path_t{t_start}_{pl_module.current_epoch}",
         )
 
         if not os.path.exists(img_path):
             os.mkdir(img_path)
             batch = self.get_first_batch()
             x, _ = batch
-            x = x[: n_images]
+            x = x[:n_images]
 
             channels = x.shape[1]
             width = x.shape[2]
             height = x.shape[3]
             step_count = len(ts)
 
-
             # iterate through noise steps
             # images: (B, Ts, C, W, H)
             # noisy_images: (B, C, W, H)
             (images, stds), noisy_images = pl_module.diffuse_and_reconstruct_grid(
-                x, t_start, ts[:-1] + [1], seed=self.seed, mean_only=mean_only, return_stds=True
+                x,
+                t_start,
+                ts[:-1] + [1],
+                seed=self.seed,
+                mean_only=mean_only,
+                return_stds=True,
             )
 
             # plot std. deviations to monitor scale
@@ -442,7 +447,7 @@ class VisualizationCallback(Callback):
                 # starting image with noise
                 image_grid[
                     height * (img_idx) : height * (img_idx + 1),
-                    0 : width,
+                    0:width,
                     :,
                 ] = noisy_img
                 # source image without noise
@@ -455,10 +460,7 @@ class VisualizationCallback(Callback):
                 # all the denoising steps
                 for step in range(step_count):
                     img_to_display = model_output_to_image_numpy(
-                        images[img_idx, step]
-                        .detach()
-                        .cpu()
-                        .numpy()
+                        images[img_idx, step].detach().cpu().numpy()
                     )
 
                     l_border_idx = step + 1
@@ -484,7 +486,7 @@ class VisualizationCallback(Callback):
             )
             plt.xlabel("Denoising step")
 
-                # save image
+            # save image
             path = os.path.join(
                 img_path,
                 f"{img_prefix}image_epoch_{pl_module.current_epoch}.png",

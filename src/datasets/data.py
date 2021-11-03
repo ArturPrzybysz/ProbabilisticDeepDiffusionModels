@@ -55,14 +55,20 @@ def get_dataloader(
 
     if num_samples_per_epoch is not None:
         shuffle = False
-        sampler = RandomSampler(dataset, num_samples=num_samples_per_epoch, replacement=True)
+        sampler = RandomSampler(
+            dataset, num_samples=num_samples_per_epoch, replacement=True
+        )
     else:
         shuffle = train
         sampler = None
 
     return DataLoader(
-        dataset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle, sampler=sampler,
-        pin_memory=pin_memory
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        sampler=sampler,
+        pin_memory=pin_memory,
     )
 
 
@@ -77,7 +83,7 @@ def get_transformations(
     if crop and train:
         transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
 
-    if crop and not train: # TODO: deterministic crop?
+    if crop and not train:  # TODO: deterministic crop?
         transformations.append(transforms.RandomCrop(crop_size, padding=crop_padding))
 
     # to tensor

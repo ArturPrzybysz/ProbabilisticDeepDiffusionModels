@@ -21,7 +21,7 @@ def init_wandb(cfg):
 
     tags.append(cfg["data"]["name"])
     effective_bs = cfg["data"]["batch_size"] * cfg["trainer"]["accumulate_grad_batches"]
-    tags.append(f'BS_{effective_bs}')
+    tags.append(f"BS_{effective_bs}")
 
     tags.append("train")
     if cfg["cont_run"]:
@@ -33,16 +33,20 @@ def init_wandb(cfg):
         tags.append(f'LR_{cfg["engine"]["optimizer_config"]["lr"]}')
         tags.append(f'T_{cfg["engine"]["diffusion_steps"]}')
         tags.append(cfg["engine"]["mode"])
-        if "ema" in cfg["engine"] and  cfg["engine"].ema:
+        if "ema" in cfg["engine"] and cfg["engine"].ema:
             tags.append(f'EMA_{cfg["engine"].ema}')
         if "sampling" in cfg["engine"] and cfg["engine"].sampling == "importance":
             tags.append("importance")
 
-    if "gradient_clip_val" in cfg["trainer"] and cfg["trainer"]["gradient_clip_val"] is not None:
+    if (
+        "gradient_clip_val" in cfg["trainer"]
+        and cfg["trainer"]["gradient_clip_val"] is not None
+    ):
         tags.append("grad_clip")
 
-
-    wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags)
+    wandb.init(
+        project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags
+    )
     wandb.config.update({"script": "train"})
 
     if cfg["run_name"] is not None:
@@ -62,9 +66,8 @@ def run_training(cfg: DictConfig):
     wandb.config.update(cfg)
     wandb.config.update({"machine": os.uname()[1]})
 
-
     callbacks = []
-    callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='step'))
+    callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval="step"))
     callbacks.append(pl.callbacks.EarlyStopping(patience=20, monitor="val_loss"))
     callbacks.append(
         pl.callbacks.ModelCheckpoint(
@@ -85,7 +88,6 @@ def run_training(cfg: DictConfig):
 
     dataloader_train = get_dataloader(train=True, pin_memory=True, **cfg["data"])
     dataloader_val = get_dataloader(train=False, pin_memory=True, **cfg["data"])
-
 
     if cfg["cont_run"]:
         checkpoint_path = download_file(cfg["cont_run"], "model.ckpt")

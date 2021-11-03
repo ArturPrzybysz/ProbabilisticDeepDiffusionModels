@@ -41,9 +41,12 @@ def sample(cfg: DictConfig):
     # engine = Engine.load_from_checkpoint(checkpoint_path, model_config=original_cfg["model"], **original_cfg["engine"])
     engine = Engine.load_from_checkpoint(checkpoint_path)
 
-    dataloader_train = get_dataloader(train=True, pin_memory=True, **original_cfg["data"])
-    dataloader_val = get_dataloader(train=False, pin_memory=True, **original_cfg["data"])
-
+    dataloader_train = get_dataloader(
+        train=True, pin_memory=True, **original_cfg["data"]
+    )
+    dataloader_val = get_dataloader(
+        train=False, pin_memory=True, **original_cfg["data"]
+    )
 
     if engine.diffusion_steps <= 30:
         num_vis_steps = 5
@@ -53,41 +56,52 @@ def sample(cfg: DictConfig):
     ts_interpolation = np.linspace(0, engine.diffusion_steps, num=5, dtype=int)[1:]
 
     vis_train = VisualizationCallback(
-            dataloader_train,
-            img_path=os.path.join(wandb.run.dir, "images"),
-            ts=ts,
-            ts_interpolation=ts_interpolation,
-            normalization=original_cfg["data"]["transformation_kwargs"].get("normalize"),
-            **original_cfg["visualization"],
-        )
+        dataloader_train,
+        img_path=os.path.join(wandb.run.dir, "images"),
+        ts=ts,
+        ts_interpolation=ts_interpolation,
+        normalization=original_cfg["data"]["transformation_kwargs"].get("normalize"),
+        **original_cfg["visualization"],
+    )
 
     vis_val = VisualizationCallback(
-            dataloader_val,
-            img_path=os.path.join(wandb.run.dir, "images"),
-            ts=ts,
-            ts_interpolation=ts_interpolation,
-            normalization=original_cfg["data"]["transformation_kwargs"].get("normalize"),
-            img_prefix="val_",
-            **original_cfg["visualization"],
-        )
+        dataloader_val,
+        img_path=os.path.join(wandb.run.dir, "images"),
+        ts=ts,
+        ts_interpolation=ts_interpolation,
+        normalization=original_cfg["data"]["transformation_kwargs"].get("normalize"),
+        img_prefix="val_",
+        **original_cfg["visualization"],
+    )
 
     if torch.cuda.is_available():
         engine.cuda()
 
-    for t0 in [engine.diffusion_steps, int(9*engine.diffusion_steps/10), int(4*engine.diffusion_steps/5), int(engine.diffusion_steps/2)]:
-        ts = [t0 - i for i in range(7)] \
-             + [t0 - i * 10 for i in range(1,6)] \
-             + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]
+    for t0 in [
+        engine.diffusion_steps,
+        int(9 * engine.diffusion_steps / 10),
+        int(4 * engine.diffusion_steps / 5),
+        int(engine.diffusion_steps / 2),
+    ]:
+        ts = (
+            [t0 - i for i in range(7)]
+            + [t0 - i * 10 for i in range(1, 6)]
+            + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]
+        )
         ts = [t for t in sorted(set(ts)) if t > 0]
         print(ts)
         engine.clip_while_generating = False
         images = []
         images.append(
-            vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+            vis_val.visualize_single_reconstructions(
+                engine, mean_only=False, ts=ts, img_prefix=f"t{t0}_val_no_clip_"
+            )
         )
 
         images.append(
-            vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_no_clip_')
+            vis_val.visualize_single_reconstructions(
+                engine, mean_only=True, ts=ts, img_prefix=f"t{t0}_val_no_clip_"
+            )
         )
         #
         # vis_train.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_no_clip_')
@@ -96,11 +110,15 @@ def sample(cfg: DictConfig):
         engine.clip_while_generating = True
 
         images.append(
-            vis_val.visualize_single_reconstructions(engine, mean_only=False, ts=ts, img_prefix=f't{t0}_val_')
+            vis_val.visualize_single_reconstructions(
+                engine, mean_only=False, ts=ts, img_prefix=f"t{t0}_val_"
+            )
         )
 
         images.append(
-            vis_val.visualize_single_reconstructions(engine, mean_only=True, ts=ts, img_prefix=f't{t0}_val_')
+            vis_val.visualize_single_reconstructions(
+                engine, mean_only=True, ts=ts, img_prefix=f"t{t0}_val_"
+            )
         )
         wandb.log({f"recon_{t0}": images})
         #
@@ -109,7 +127,6 @@ def sample(cfg: DictConfig):
 
     vis_val.run_visualizations(engine)
     vis_train.run_visualizations(engine)
-
 
 
 if __name__ == "__main__":

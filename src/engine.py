@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 import torch
 import pytorch_lightning as pl
+
 # from torch_ema import ExponentialMovingAverage
 import wandb
 
@@ -60,7 +61,7 @@ class Engine(pl.LightningModule):
         sampling="uniform",
         ema=None,
         scheduler_name=None,
-        scheduler_kwargs=None
+        scheduler_kwargs=None,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -108,9 +109,13 @@ class Engine(pl.LightningModule):
         if sampling == "uniform":
             self.sampler = UniformSampler(diffusion_steps=diffusion_steps)
         elif sampling == "importance":
-            self.sampler = ImportanceSampler(diffusion_steps=diffusion_steps, loss_per_t=self.loss_per_t, min_counts=10)
+            self.sampler = ImportanceSampler(
+                diffusion_steps=diffusion_steps,
+                loss_per_t=self.loss_per_t,
+                min_counts=10,
+            )
         else:
-            raise ValueError(f"Unknown sampling option: \"{sampling}\"")
+            raise ValueError(f'Unknown sampling option: "{sampling}"')
 
         self.val_sampler = UniformSampler(diffusion_steps=diffusion_steps)
 
@@ -129,7 +134,6 @@ class Engine(pl.LightningModule):
             finally:
                 self.model = self.original_model
 
-
     def on_epoch_end(self) -> None:
         if isinstance(self.sampler, ImportanceSampler):
             print("self.sampler._ready: ", self.sampler._ready)
@@ -140,25 +144,28 @@ class Engine(pl.LightningModule):
         for i in range(4):
             self.log(
                 f"loss_q{i+1}",
-                self.loss_per_t_epoch.get_avg_in_range(max(1, int(i*self.diffusion_steps/4)),
-                                                       int((i+1)*self.diffusion_steps/4)),
-                on_step=False, on_epoch=True, prog_bar=False
+                self.loss_per_t_epoch.get_avg_in_range(
+                    max(1, int(i * self.diffusion_steps / 4)),
+                    int((i + 1) * self.diffusion_steps / 4),
+                ),
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
             )
 
-        plt.figure(figsize=(10,10))
+        plt.figure(figsize=(10, 10))
         plt.plot(self.loss_per_t_epoch.avg_per_step)
         plt.xlabel("step")
         plt.ylabel("L_t")
         wandb.log({"loss_per_step": plt})
 
-        plt.figure(figsize=(10,10))
+        plt.figure(figsize=(10, 10))
         plt.plot(self.loss_per_t_epoch.n_per_step)
         plt.xlabel("step")
         plt.ylabel("n_samples")
         wandb.log({"n_samples_per_step": plt})
 
         self.loss_per_t_epoch.reset()
-
 
     def optimizer_step(self, *args, **kwargs):
         self._log_grad_norm()
@@ -181,21 +188,15 @@ class Engine(pl.LightningModule):
             prog_bar=False,
         )
 
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), **self.optimizer_config)
         # Consider weight decay
         # optimizer = torch.optim.AdamW(self.parameters(), **self.optimizer_config)
         if self.scheduler_name:
-            scheduler_class = getattr(
-                torch.optim.lr_scheduler, self.scheduler_name
-            )
+            scheduler_class = getattr(torch.optim.lr_scheduler, self.scheduler_name)
             scheduler = scheduler_class(optimizer, **self.scheduler_kwargs)
 
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": scheduler
-            }
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:
             return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
@@ -208,14 +209,15 @@ class Engine(pl.LightningModule):
             * noise
         )
 
-    def get_loss(self, predicted_noise, target_noise, t, weights=None, update_loss_log=True):
+    def get_loss(
+        self, predicted_noise, target_noise, t, weights=None, update_loss_log=True
+    ):
         loss = mean_flat(torch.square(target_noise - predicted_noise))
         if update_loss_log:
             losses = loss.detach().cpu().numpy().tolist()
             ts = t.detach().cpu().numpy().tolist()
             self.loss_per_t.update_multiple(ts, losses)
             self.loss_per_t_epoch.update_multiple(ts, losses)
-
 
         # TODO: should batch be averaged or summed?
         if weights is not None:
@@ -230,7 +232,9 @@ class Engine(pl.LightningModule):
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
-        loss = self.get_loss(predicted_noise, noise, weights=weights, t=t, update_loss_log=True)
+        loss = self.get_loss(
+            predicted_noise, noise, weights=weights, t=t, update_loss_log=True
+        )
 
         total_norm = self.compute_grad_norm(self.model.parameters())
         self.log("loss", loss, on_step=False, on_epoch=True, prog_bar=True)
@@ -251,7 +255,6 @@ class Engine(pl.LightningModule):
         )
         return loss
 
-
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
         batch_size = x.shape[0]
@@ -259,9 +262,10 @@ class Engine(pl.LightningModule):
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
-        loss = self.get_loss(predicted_noise, noise, weights=weights, t=t, update_loss_log=False)
+        loss = self.get_loss(
+            predicted_noise, noise, weights=weights, t=t, update_loss_log=False
+        )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-
 
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
@@ -328,7 +332,7 @@ class Engine(pl.LightningModule):
         mean_only=False,
         generator=None,
         seed=None,
-        return_stds=False
+        return_stds=False,
     ):
         """Returns shape [B, STEPS, C, W, H]"""
         if t_start is None:
@@ -438,7 +442,13 @@ class Engine(pl.LightningModule):
 
     @torch.no_grad()
     def diffuse_and_reconstruct_grid(
-        self, x0, t_start=None, steps_to_return=(1,), seed=None, mean_only=False, return_stds=False
+        self,
+        x0,
+        t_start=None,
+        steps_to_return=(1,),
+        seed=None,
+        mean_only=False,
+        return_stds=False,
     ):
         """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
         self.eval()
@@ -452,7 +462,12 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x0, noise, t_start)
         return (
             self.sample_and_return_steps(
-                x_t.detach().clone(), t_start, steps_to_return, generator=generator, mean_only=mean_only, return_stds=return_stds
+                x_t.detach().clone(),
+                t_start,
+                steps_to_return,
+                generator=generator,
+                mean_only=mean_only,
+                return_stds=return_stds,
             ),
             x_t,
         )

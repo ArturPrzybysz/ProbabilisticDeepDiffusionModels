@@ -6,10 +6,13 @@ from torch.utils.data import Dataset
 
 from paths import CELEBAHQ_DIR
 
+
 class CelebAHQDataset(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, root_dir=CELEBAHQ_DIR, train=True, transform=None, resolution=256):
+    def __init__(
+        self, root_dir=CELEBAHQ_DIR, train=True, transform=None, resolution=256
+    ):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -24,14 +27,13 @@ class CelebAHQDataset(Dataset):
         elif resolution == 1024:
             self.img_dir = os.path.join(self.root_dir, "CelebA-HQ-img")
         else:
-            raise ValueError('resolution not supported')
+            raise ValueError("resolution not supported")
         self.transform = transform
-        self.metadata = pd.read_csv(os.path.join(root_dir, 'metadata.csv'))
-        self.split_mapping = {
-            True: [0,3],
-            False: [1,2]
-        }
-        self.metadata = self.metadata[self.metadata.split.isin(self.split_mapping[train])]
+        self.metadata = pd.read_csv(os.path.join(root_dir, "metadata.csv"))
+        self.split_mapping = {True: [0, 3], False: [1, 2]}
+        self.metadata = self.metadata[
+            self.metadata.split.isin(self.split_mapping[train])
+        ]
 
     def __len__(self):
         return len(self.metadata)
@@ -47,6 +49,8 @@ class CelebAHQDataset(Dataset):
             X = self.transform(X)
 
         # filter out meta
-        meta = meta[~meta.isin(['idx', 'orig_idx', 'orig_file', 'split', 'index', 'file_name'])]
+        meta = meta[
+            ~meta.isin(["idx", "orig_idx", "orig_file", "split", "index", "file_name"])
+        ]
 
         return X, meta.to_dict()

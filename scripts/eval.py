@@ -12,9 +12,8 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
-from src.data import get_dataloader
+from src.datasets.data import get_dataloader
 from src.engine import Engine
-from src.modules import get_model
 from src.wandb_util import download_file
 
 wandb.init(project="diffusion", entity="ddpm")

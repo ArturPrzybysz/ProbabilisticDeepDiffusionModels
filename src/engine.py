@@ -375,6 +375,7 @@ class Engine(pl.LightningModule):
         L_intermediate_list = []
         MSE_list = []
         batch_size = x0.shape[0]
+        print("x0.shape", x0.shape)
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
         for t in tqdm(range(2, self.diffusion_steps + 1)):
             t = batches * t

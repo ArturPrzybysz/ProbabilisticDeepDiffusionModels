@@ -5,7 +5,7 @@ hydra:
     dir: ./
 num_samples: 4
 black_white: true
-run_id: 18xuykdx
+run_id: g9rz03aa
 defaults:
-  - model: unet_small_grey
-  - data: mnist
+  - model: unet
+  - data: cifar10

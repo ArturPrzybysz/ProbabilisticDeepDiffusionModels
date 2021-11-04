@@ -37,7 +37,7 @@ def run_training(cfg: DictConfig, model_path=None):
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
     dataloader_train = get_dataloader(
-        train=False, pin_memory=True, **cfg["data"]
+        train=True, pin_memory=True, **cfg["data"]
     )
 
     logger = pl.loggers.WandbLogger()

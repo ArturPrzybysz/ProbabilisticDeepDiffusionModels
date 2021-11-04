@@ -381,10 +381,10 @@ class Engine(pl.LightningModule):
             x_t = self.get_q_t(x0, noise, t)
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
-            alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1]
-            one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1]
+            alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
             predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
-            predicted_std = self.get_sigma(t - 1)  # TODO: Check indexing xD
+            predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
             _L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t), mean2=predicted_mean, logvar2=predicted_logvar)

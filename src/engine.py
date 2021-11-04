@@ -271,6 +271,14 @@ class Engine(pl.LightningModule):
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
+        if self.ema is not None:
+            with self.ema_on():
+                predicted_noise = self.model(x_t, t)
+                loss = self.get_loss(
+                    predicted_noise, noise, weights=weights, t=t, update_loss_log=False
+                )
+                self.log("val_loss_ema", loss, on_step=False, on_epoch=True, prog_bar=True)
+
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]

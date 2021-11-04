@@ -388,13 +388,19 @@ class Engine(pl.LightningModule):
             predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
+
             L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
                             mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
             L_intermediate_list.append(L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            print(t[0], th.mean(mse_i), th.mean(L_i), )
+            print(t[0], th.mean(mse_i), th.mean(L_i))
+            print("mean_t, predicted_mean", mean_t, predicted_mean)
+            print("var_t, predicted_std**2", var_t, predicted_std ** 2)
+            print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
+            print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
+
         return L_intermediate_list, MSE_list
 
     def q_posterior(self, t, x0, x_t):

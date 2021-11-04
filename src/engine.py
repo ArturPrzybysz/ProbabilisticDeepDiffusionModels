@@ -201,13 +201,17 @@ class Engine(pl.LightningModule):
             return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
     # ------------ Training and diffusion stuff ----------
+    def q_mean_std(self, x, t):
+        """
+        TODO: explain
+        """
+        mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        return mean, std
 
     def get_q_t(self, x, noise, t):
-        return (
-            x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            * noise
-        )
+        mean, std = self.q_mean_std(x, t)
+        return mean + noise * std
 
     def get_loss(
         self, predicted_noise, target_noise, t, weights=None, update_loss_log=True

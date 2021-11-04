@@ -28,7 +28,7 @@ class ImportanceSampler:
             p = self.loss_per_t.avg_sq_per_step + 1e-6  # in case of 0s
             p = p / p.sum()
             indices = np.random.choice(
-                self.diffusion_steps - 1, size=(batch_size,), p=p
+                self.diffusion_steps, size=(batch_size,), p=p
             )
             weights = 1 / (p[indices] * batch_size)
             t = (
@@ -37,5 +37,5 @@ class ImportanceSampler:
             weights = torch.from_numpy(weights).to(device)
             return t, weights
         else:
-            t = torch.randint(1, self.diffusion_steps, (batch_size,), device=device)
+            t = torch.randint(1, self.diffusion_steps + 1, (batch_size,), device=device)
             return t, None

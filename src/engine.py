@@ -387,7 +387,8 @@ class Engine(pl.LightningModule):
             predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
-            _L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t), mean2=predicted_mean, logvar2=predicted_logvar)
+            _L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
+                             mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
             _L_intermediate_list.append(_L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)

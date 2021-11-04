@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 
 # from torch_ema import ExponentialMovingAverage
 import wandb
+from tqdm import tqdm
 
 from src.modules import get_model
 import numpy as np
@@ -371,11 +372,11 @@ class Engine(pl.LightningModule):
         KL divergence of intermediate steps in [1, T-1] as:
         sum of KL divergences of (q(x_t−1 | x_t , x_0 ) || p_theta (x_t−1|x_t ))
         """
-        _L_intermediate_list = []
+        L_intermediate_list = []
         MSE_list = []
         batch_size = x0.shape[0]
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
-        for t in range(2, self.diffusion_steps + 1):
+        for t in tqdm(range(2, self.diffusion_steps + 1)):
             t = batches * t
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)
@@ -387,14 +388,14 @@ class Engine(pl.LightningModule):
             predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
-            _L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
-                             mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
-            _L_intermediate_list.append(_L_i)
+            L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
+                            mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
+            L_intermediate_list.append(L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-
-        return _L_intermediate_list, MSE_list
+            print(t, th.mean(mse_i), th.mean(L_i), )
+        return L_intermediate_list, MSE_list
 
     def q_posterior(self, t, x0, x_t):
         """

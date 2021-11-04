@@ -394,7 +394,7 @@ class Engine(pl.LightningModule):
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            print(t, th.mean(mse_i), th.mean(L_i), )
+            print(th.mean(t), th.mean(mse_i), th.mean(L_i), )
         return L_intermediate_list, MSE_list
 
     def q_posterior(self, t, x0, x_t):

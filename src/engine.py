@@ -347,13 +347,18 @@ class Engine(pl.LightningModule):
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=1)
         MSE = th.mean(th.stack(MSE_list))
+        print("mse", MSE)
+        print("L_0", th.mean(L_0, dim=0))
+        print("L_intermediate", L_intermediate)
+        print("L_T", th.mean(L_T, dim=0))
+
         return {
             "MSE": MSE,  # TODO
             "MSE_list": MSE_list,  # TODO
             "L_0": th.mean(L_0, dim=0),
             "L_intermediate": L_intermediate,
             "L_T": th.mean(L_T, dim=0),
-            "nll": th.mean(L_0 + L_intermediate + L_T, dim=0),
+            "nll": th.mean(L_0.detach().cpu() + L_intermediate + L_T, dim=0),
             "L_intermediate_list": L_intermediate_list,
         }
 
@@ -363,9 +368,9 @@ class Engine(pl.LightningModule):
         """
         q_mean, q_std = self.q_mean_std(x, self.diffusion_steps)
         p_mean, p_logvar = 0.0, 0.0
-        print(q_mean, q_std)
+        # print(q_mean, q_std)
         # p_mean, p_logvar = th.zeros_like(q_mean), th.zeros_like(q_std)
-        return normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar)
+        return torch.mean(normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar), dim=[1,2,3])
 
     def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor]]:
         """
@@ -375,7 +380,7 @@ class Engine(pl.LightningModule):
         L_intermediate_list = []
         MSE_list = []
         batch_size = x0.shape[0]
-        print("x0.shape", x0.shape)
+        # print("x0.shape", x0.shape)
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
         for t in tqdm(range(2, self.diffusion_steps + 1)):
             t = batches * t
@@ -392,15 +397,16 @@ class Engine(pl.LightningModule):
 
             L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
                             mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
+            L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
             L_intermediate_list.append(L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            print(t[0], th.mean(mse_i), th.mean(L_i))
-            print("mean_t, predicted_mean", mean_t, predicted_mean)
-            print("var_t, predicted_std**2", var_t, predicted_std ** 2)
-            print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
-            print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
+            # print(t[0], th.mean(mse_i), th.mean(L_i))
+            # print("mean_t, predicted_mean", mean_t, predicted_mean)
+            # print("var_t, predicted_std**2", var_t, predicted_std ** 2)
+            # print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
+            # print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
 
         return L_intermediate_list, MSE_list
 
@@ -437,7 +443,7 @@ class Engine(pl.LightningModule):
         """
         reconstruction likelihood: -log(p(x_0 | x_1))
         """
-        return th.Tensor([0])
+        return th.Tensor([0]).to(self.device)
 
     def q_mean_std(self, x, t):
         """

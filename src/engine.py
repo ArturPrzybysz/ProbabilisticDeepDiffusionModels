@@ -358,7 +358,7 @@ class Engine(pl.LightningModule):
             "L_0": th.mean(L_0, dim=0),
             "L_intermediate": L_intermediate,
             "L_T": th.mean(L_T, dim=0),
-            "nll": th.mean(L_0.detach().cpu() + L_intermediate + L_T, dim=0),
+            "nll": th.mean(L_0 + L_intermediate + L_T, dim=0),
             "L_intermediate_list": L_intermediate_list,
         }
 

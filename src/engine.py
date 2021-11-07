@@ -337,6 +337,7 @@ class Engine(pl.LightningModule):
         self.log("test_L_intermediate", nll["L_intermediate"])
         self.log("test_L_T", nll["L_T"])
         self.log("test_nll", nll["nll"])
+        self.log("test_mse", nll["MSE"])
 
     def calculate_likelihood(self, x):
         """

@@ -349,7 +349,8 @@ class Engine(pl.LightningModule):
         MSE = th.mean(th.stack(MSE_list))
         print("mse", MSE)
         print("L_0", th.mean(L_0, dim=0))
-        print("L_intermediate", L_intermediate)
+        print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
+        print("L_intermediate", L_intermediate.shape, L_intermediate)
         print("L_T", th.mean(L_T, dim=0))
 
         return {

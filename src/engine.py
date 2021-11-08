@@ -396,9 +396,10 @@ class Engine(pl.LightningModule):
             predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
-
-            kl = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
-                            mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
+            logvar_1 = th.log(var_t) * th.ones_like(mean_t)
+            logvar_2 = predicted_logvar * th.ones_like(mean_t)
+            kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
+                            mean2=predicted_mean, logvar2=logvar_2)
             # L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
             L_i = mean_flat(kl) / np.log(2.0)
 

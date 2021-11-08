@@ -419,6 +419,7 @@ class Engine(pl.LightningModule):
         :return: a tensor like x of log probabilities (in nats).
         """
         log_stddev = 2 * th.log(var_t)
+        print("x0.shape", x0.shape, "mean_t.shape", mean_t.shape, "var_t.shape", var_t.shape)
         assert x0.shape == mean_t.shape == log_stddev.shape
         centered_x = x0 - mean_t
         inv_stdv = th.exp(-log_stddev)

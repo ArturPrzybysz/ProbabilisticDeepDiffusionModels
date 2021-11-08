@@ -418,7 +418,7 @@ class Engine(pl.LightningModule):
         :param log_scales: the Gaussian log stddev Tensor.
         :return: a tensor like x of log probabilities (in nats).
         """
-        return th.zeros(x_0.shape[0])
+        return th.zeros(x_0.shape[0], device=x_0.device)
         assert x.shape == means.shape == log_scales.shape
         centered_x = x - means
         inv_stdv = th.exp(-log_scales)

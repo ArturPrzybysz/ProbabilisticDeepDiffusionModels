@@ -388,7 +388,7 @@ class Engine(pl.LightningModule):
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
 
-            if t_step == 2:
+            if t_step == -2:
                 L_i = self.discretized_gaussian_likelihood(x0, mean_t, var_t)
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)

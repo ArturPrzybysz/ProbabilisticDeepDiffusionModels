@@ -389,7 +389,7 @@ class Engine(pl.LightningModule):
             predicted_noise = self.model(x_t, t)
 
             if t_step == 2:
-                L_i = self.discretized_gaussian_likelihood(x0, mean_t, var_t)
+                L_i = mean_flat(self.discretized_gaussian_likelihood(x0, mean_t, var_t)) / np.log(2.0)
                 print("!!!\nL_i", L_i, "\n")
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)

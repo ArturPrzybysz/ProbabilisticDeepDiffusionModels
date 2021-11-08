@@ -384,8 +384,8 @@ class Engine(pl.LightningModule):
         batch_size = x0.shape[0]
         # print("x0.shape", x0.shape)
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
-        for t in tqdm(range(2, self.diffusion_steps + 1)):
-            t = batches * t
+        for t_step in tqdm(range(2, self.diffusion_steps + 1)):
+            t = batches * t_step
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)
             mean_t, var_t = self.q_posterior(t, x0, x_t)
@@ -397,18 +397,26 @@ class Engine(pl.LightningModule):
             predicted_logvar = 2 * th.log(predicted_std)
 
 
-            L_i = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
+            kl = normal_kl(mean1=mean_t, logvar1=th.log(var_t).view((-1, 1, 1, 1)),
                             mean2=predicted_mean, logvar2=predicted_logvar.view((-1, 1, 1, 1)))
-            L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
+            # L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
+            L_i = mean_flat(kl) / np.log(2.0)
+
             L_intermediate_list.append(L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            # print(t[0], th.mean(mse_i), th.mean(L_i))
-            # print("mean_t, predicted_mean", mean_t, predicted_mean)
-            # print("var_t, predicted_std**2", var_t, predicted_std ** 2)
-            # print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
-            # print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
+            if t_step % 100 == 0:
+                print(t_step)
+                print("mse", mse_i)
+                print("L_i", L_i)
+                print("mean_flat(kl) / np.log(2.0)", mean_flat(kl) / np.log(2.0))
+                print("mean_flat(kl)", mean_flat(kl))
+                print("np.log(2.0)", np.log(2.0))
+                print("torch.mean(L_i, dim=[1,2,3])", torch.mean(kl, dim=[1,2,3]))
+                print("posterior_variance", var_t)
+                print("posterior logvariance", var_t)
+                print("predicted logvar", predicted_logvar)
 
         return L_intermediate_list, MSE_list
 

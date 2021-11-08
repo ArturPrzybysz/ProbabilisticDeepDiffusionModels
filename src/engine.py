@@ -389,7 +389,7 @@ class Engine(pl.LightningModule):
             predicted_noise = self.model(x_t, t)
 
             if t_step == 2:
-                L_i = self.discretized_gaussian_likelihood()
+                L_i = self.discretized_gaussian_likelihood(x0)
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
@@ -407,7 +407,7 @@ class Engine(pl.LightningModule):
             MSE_list.append(mse_i)
         return L_intermediate_list, MSE_list
 
-    def discretized_gaussian_likelihood(self):  # x, means, log_scales):
+    def discretized_gaussian_likelihood(self, x_0):  # x, means, log_scales):
         """
         Compute the log-likelihood of a Gaussian distribution discretizing to a
         given image.
@@ -418,7 +418,7 @@ class Engine(pl.LightningModule):
         :param log_scales: the Gaussian log stddev Tensor.
         :return: a tensor like x of log probabilities (in nats).
         """
-        return th.Tensor(0)
+        return th.zeros_like(x_0)
 
         assert x.shape == means.shape == log_scales.shape
         centered_x = x - means

@@ -414,8 +414,8 @@ class Engine(pl.LightningModule):
                 print("kl.shape", kl.shape)
                 print("mean_t.shape", mean_t.shape)
                 print("predicted_mean.shape", predicted_mean.shape)
-                print("th.log(var_t).view((-1, 1, 1, 1)).shape", th.log(var_t).view((-1, 1, 1, 1)).shape)
-                print("predicted_logvar.view((-1, 1, 1, 1)).shape", predicted_logvar.view((-1, 1, 1, 1)).shape)
+                print("logvar_1.shape", logvar_1)
+                print("logvar_2.shape", logvar_2)
 
                 print("mean_flat(kl) / np.log(2.0)", mean_flat(kl) / np.log(2.0))
                 print("mean_flat(kl)", mean_flat(kl))

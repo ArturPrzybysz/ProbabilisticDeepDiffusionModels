@@ -408,14 +408,14 @@ class Engine(pl.LightningModule):
             MSE_list.append(mse_i)
             if t_step % 100 == 0:
                 print(t_step)
-                print("mse", mse_i)
+                print("mse", torch.mean(mse_i))
                 print("L_i", L_i)
                 print("mean_flat(kl) / np.log(2.0)", mean_flat(kl) / np.log(2.0))
                 print("mean_flat(kl)", mean_flat(kl))
                 print("np.log(2.0)", np.log(2.0))
                 print("torch.mean(L_i, dim=[1,2,3])", torch.mean(kl, dim=[1,2,3]))
                 print("posterior_variance", var_t)
-                print("posterior logvariance", var_t)
+                print("posterior logvariance", th.log(var_t))
                 print("predicted logvar", predicted_logvar)
 
         return L_intermediate_list, MSE_list

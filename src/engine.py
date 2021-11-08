@@ -423,7 +423,7 @@ class Engine(pl.LightningModule):
         assert x0.shape == mean_t.shape
         centered_x = x0 - mean_t
         inv_stdv = th.exp(-log_stddev)
-        plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
+        plus_in = th.matmul(inv_stdv, (centered_x + 1.0 / 255.0))
         cdf_plus = self.approx_standard_normal_cdf(plus_in)
         min_in = inv_stdv * (centered_x - 1.0 / 255.0)
         cdf_min = self.approx_standard_normal_cdf(min_in)

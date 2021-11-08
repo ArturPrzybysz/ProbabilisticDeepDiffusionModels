@@ -370,9 +370,7 @@ class Engine(pl.LightningModule):
         """
         q_mean, q_std = self.q_mean_std(x, self.diffusion_steps)
         p_mean, p_logvar = 0.0, 0.0
-        # print(q_mean, q_std)
-        # p_mean, p_logvar = th.zeros_like(q_mean), th.zeros_like(q_std)
-        return torch.mean(normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar), dim=[1,2,3])
+        return torch.mean(normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar), dim=[1, 2, 3]) / np.log(2.0)
 
     def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor]]:
         """
@@ -382,69 +380,80 @@ class Engine(pl.LightningModule):
         L_intermediate_list = []
         MSE_list = []
         batch_size = x0.shape[0]
-        # print("x0.shape", x0.shape)
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
-        for t_step in tqdm(range(2, self.diffusion_steps + 1)):
+        for t_step in range(2, self.diffusion_steps + 1):
             t = batches * t_step
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
-            alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
-            predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
-            predicted_logvar = 2 * th.log(predicted_std)
 
-            logvar_1 = th.log(var_t) * th.ones_like(mean_t)
-            logvar_2 = predicted_logvar * th.ones_like(mean_t)
-            kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
-                            mean2=predicted_mean, logvar2=logvar_2)
-            # L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
-            L_i = mean_flat(kl) / np.log(2.0)
+            if t_step == 2:
+                L_i = self.discretized_gaussian_likelihood()
+            else:
+                alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+                predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
+                predicted_std = self.get_sigma(t - 1).to(self.device)
+                predicted_logvar = 2 * th.log(predicted_std)
 
+                logvar_1 = th.log(var_t) * th.ones_like(mean_t)
+                logvar_2 = predicted_logvar * th.ones_like(mean_t)
+                kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
+                               mean2=predicted_mean, logvar2=logvar_2)
+                L_i = mean_flat(kl) / np.log(2.0)
             L_intermediate_list.append(L_i)
-
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            if t_step % 100 == 0:
-                print(t_step)
-                print("mse", torch.mean(mse_i))
-                print("L_i", L_i)
-                print("kl.shape", kl.shape)
-                print("mean_t.shape", mean_t.shape)
-                print("predicted_mean.shape", predicted_mean.shape)
-                print("logvar_1.shape", logvar_1)
-                print("logvar_2.shape", logvar_2)
-
-                print("mean_flat(kl) / np.log(2.0)", mean_flat(kl) / np.log(2.0))
-                print("mean_flat(kl)", mean_flat(kl))
-                print("np.log(2.0)", np.log(2.0))
-                print("torch.mean(L_i, dim=[1,2,3])", torch.mean(kl, dim=[1,2,3]))
-                print("posterior_variance", var_t)
-                print("posterior logvariance", th.log(var_t))
-                print("predicted logvar", predicted_logvar)
-
         return L_intermediate_list, MSE_list
+
+    def discretized_gaussian_likelihood(self):  # x, means, log_scales):
+        """
+        Compute the log-likelihood of a Gaussian distribution discretizing to a
+        given image.
+
+        :param x: the target images. It is assumed that this was uint8 values,
+                  rescaled to the range [-1, 1].
+        :param means: the Gaussian mean Tensor.
+        :param log_scales: the Gaussian log stddev Tensor.
+        :return: a tensor like x of log probabilities (in nats).
+        """
+        return 0
+
+        assert x.shape == means.shape == log_scales.shape
+        centered_x = x - means
+        inv_stdv = th.exp(-log_scales)
+        plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
+        cdf_plus = self.approx_standard_normal_cdf(plus_in)
+        min_in = inv_stdv * (centered_x - 1.0 / 255.0)
+        cdf_min = self.approx_standard_normal_cdf(min_in)
+        log_cdf_plus = th.log(cdf_plus.clamp(min=1e-12))  # TODO: remove log
+        log_one_minus_cdf_min = th.log((1.0 - cdf_min).clamp(min=1e-12))  # TODO: remove log
+        cdf_delta = cdf_plus - cdf_min
+        log_probs = th.where(
+            x < -0.999,
+            log_cdf_plus,
+            th.where(x > 0.999, log_one_minus_cdf_min, th.log(cdf_delta.clamp(min=1e-12))),
+        )
+        assert log_probs.shape == x.shape
+        return log_probs
+
+    def approx_standard_normal_cdf(self, x):
+        """
+        A fast approximation of the cumulative distribution function of the
+        standard normal.
+        """
+        return 0.5 * (1.0 + th.tanh(np.sqrt(2.0 / np.pi) * (x + 0.044715 * th.pow(x, 3))))
 
     def q_posterior(self, t, x0, x_t):
         """
         Returns mean and variance of q(x_t-1 | x_t, x_0) following eq. (6) and (7)
         """
-        alpha_hat_sqrt_t_min_1 = self.alphas_hat_sqrt[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t_min1 = self.alphas_hat[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-
-        # print("alpha_hat_sqrt_t_min_1", alpha_hat_sqrt_t_min_1.shape)
-        # print("alpha_hat_t_min1", alpha_hat_t_min1.shape)
-        # print("alpha_sqrt_t", alpha_sqrt_t.shape)
-        # print("alpha_hat_t", alpha_hat_t.shape)
-        # print("beta_t", beta_t.shape)
-        # print("x0", x0.shape)
-        # print("xt", x_t.shape)
-
+        alpha_hat_sqrt_t_min_1 = self.alphas_hat_sqrt[t - 2].view((-1, 1, 1, 1)).to(self.device)
+        alpha_hat_t_min1 = self.alphas_hat[t - 2].view((-1, 1, 1, 1)).to(self.device)
+        alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)
         mean_t = (
                 x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
                 +
@@ -460,7 +469,7 @@ class Engine(pl.LightningModule):
         """
         reconstruction likelihood: -log(p(x_0 | x_1))
         """
-        return th.Tensor([0]).to(self.device)
+        return th.Tensor([0]).to(self.device) / np.log(2.0)
 
     def q_mean_std(self, x, t):
         """
@@ -469,10 +478,6 @@ class Engine(pl.LightningModule):
         mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
         std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
         return mean, std
-
-    # def get_q_t(self, x, noise, t):
-    #     mean, std = self.q_mean_std(x, t)
-    #     return mean + noise * std
 
     # ------------ Image generation endpoints ----------
 

@@ -420,7 +420,7 @@ class Engine(pl.LightningModule):
         """
         log_stddev = 2 * th.log(var_t)
         print("x0.shape", x0.shape, "mean_t.shape", mean_t.shape, "var_t.shape", var_t.shape)
-        assert x0.shape == mean_t.shape == log_stddev.shape
+        assert x0.shape == mean_t.shape
         centered_x = x0 - mean_t
         inv_stdv = th.exp(-log_stddev)
         plus_in = inv_stdv * (centered_x + 1.0 / 255.0)

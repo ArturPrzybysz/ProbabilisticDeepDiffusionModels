@@ -389,7 +389,7 @@ class Engine(pl.LightningModule):
             predicted_noise = self.model(x_t, t)
 
             if t_step == 2:
-                L_i = self.discretized_gaussian_likelihood(x0)
+                L_i = self.discretized_gaussian_likelihood(x0, mean_t, var_t)
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
@@ -407,7 +407,7 @@ class Engine(pl.LightningModule):
             MSE_list.append(mse_i)
         return L_intermediate_list, MSE_list
 
-    def discretized_gaussian_likelihood(self, x_0):  # x, means, log_scales):
+    def discretized_gaussian_likelihood(self, x0, mean_t, var_t):
         """
         Compute the log-likelihood of a Gaussian distribution discretizing to a
         given image.
@@ -418,10 +418,10 @@ class Engine(pl.LightningModule):
         :param log_scales: the Gaussian log stddev Tensor.
         :return: a tensor like x of log probabilities (in nats).
         """
-        return th.zeros(x_0.shape[0], device=x_0.device)
-        assert x.shape == means.shape == log_scales.shape
-        centered_x = x - means
-        inv_stdv = th.exp(-log_scales)
+        log_stddev = 2 * th.log(var_t)
+        assert x0.shape == mean_t.shape == log_stddev.shape
+        centered_x = x0 - mean_t
+        inv_stdv = th.exp(-log_stddev)
         plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
         cdf_plus = self.approx_standard_normal_cdf(plus_in)
         min_in = inv_stdv * (centered_x - 1.0 / 255.0)
@@ -430,11 +430,12 @@ class Engine(pl.LightningModule):
         log_one_minus_cdf_min = th.log((1.0 - cdf_min).clamp(min=1e-12))  # TODO: remove log
         cdf_delta = cdf_plus - cdf_min
         log_probs = th.where(
-            x < -0.999,
+            x0 < -0.999,
             log_cdf_plus,
-            th.where(x > 0.999, log_one_minus_cdf_min, th.log(cdf_delta.clamp(min=1e-12))),
+            th.where(x0 > 0.999, log_one_minus_cdf_min, th.log(cdf_delta.clamp(min=1e-12))),
         )
-        assert log_probs.shape == x.shape
+        assert log_probs.shape == x0.shape
+        print("log_probs.shape", log_probs.shape)
         return log_probs
 
     def approx_standard_normal_cdf(self, x):

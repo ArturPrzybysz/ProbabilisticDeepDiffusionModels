@@ -388,7 +388,7 @@ class Engine(pl.LightningModule):
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
 
-            if t_step == -2:
+            if t_step == 2:
                 L_i = self.discretized_gaussian_likelihood(x0)
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
@@ -402,7 +402,6 @@ class Engine(pl.LightningModule):
                 kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
                                mean2=predicted_mean, logvar2=logvar_2)
                 L_i = mean_flat(kl) / np.log(2.0)
-                print(L_i.shape)
             L_intermediate_list.append(L_i)
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
@@ -419,8 +418,7 @@ class Engine(pl.LightningModule):
         :param log_scales: the Gaussian log stddev Tensor.
         :return: a tensor like x of log probabilities (in nats).
         """
-        # return th.zeros(x_0.shape[0], 1)
-
+        return th.zeros(x_0.shape[0])
         assert x.shape == means.shape == log_scales.shape
         centered_x = x - means
         inv_stdv = th.exp(-log_scales)

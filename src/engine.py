@@ -411,6 +411,14 @@ class Engine(pl.LightningModule):
                 print(t_step)
                 print("mse", torch.mean(mse_i))
                 print("MSE", th.mean(th.pow(mean_t - predicted_mean, 2)))
+                print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
+                print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
+                print("th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2))",
+                      th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2)))
+                print("th.mean(th.pow(predicted_noise, 2))",
+                      th.mean(th.pow(predicted_noise, 2)))
+                print("th.mean(th.pow(alpha_hat_sqrt_t * x0, 2))", th.mean(th.pow(alpha_hat_sqrt_t * x0, 2)))
+                print("th.mean(th.pow(x0, 2))", th.mean(th.pow(x0, 2)))
                 print("L_i", L_i)
                 print("kl.shape", kl.shape)
                 print("mean_t.shape", mean_t.shape)

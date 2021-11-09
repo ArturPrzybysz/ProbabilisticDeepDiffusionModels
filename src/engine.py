@@ -332,7 +332,7 @@ class Engine(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, _ = batch
         nll = self.calculate_likelihood(x)
-        # print(nll)
+        print(nll)
         self.log("test_L_0", nll["L_0"], on_step=True, on_epoch=False, prog_bar=False, )
         self.log("test_L_intermediate", nll["L_intermediate"], on_step=True, on_epoch=False, prog_bar=False, )
         self.log("test_L_T", nll["L_T"], on_step=True, on_epoch=False, prog_bar=False)

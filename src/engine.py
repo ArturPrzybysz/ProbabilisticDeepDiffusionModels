@@ -410,6 +410,7 @@ class Engine(pl.LightningModule):
             if t_step % 100 == 0:
                 print(t_step)
                 print("mse", torch.mean(mse_i))
+                print("MSE", th.mean(th.pow(mean_t - predicted_mean, 2)))
                 print("L_i", L_i)
                 print("kl.shape", kl.shape)
                 print("mean_t.shape", mean_t.shape)

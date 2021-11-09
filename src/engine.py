@@ -385,7 +385,7 @@ class Engine(pl.LightningModule):
             t = batches * t_step
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)
-            mean_t, var_t = self.q_posterior(t, x0, x_t)
+            mean_t, var_t = self.q_posterior(t, x0, x_t)  # tu zwalone?
             predicted_noise = self.model(x_t, t)
 
             if t_step == -2:  # TODO: Remove - and fix
@@ -394,7 +394,7 @@ class Engine(pl.LightningModule):
             else:
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-                predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
+                predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise  # tu zwalone?
                 print("\n\nMSE!!!", th.mean(th.pow(mean_t - predicted_mean, 2)), "\n\n")
 
                 predicted_std = self.get_sigma(t - 1).to(self.device)
@@ -462,9 +462,9 @@ class Engine(pl.LightningModule):
         alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
         alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)
         beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)
-        mean_t = (
+        mean_t = (  # tu zwalone?
                 x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
-                +
+                -
                 x_t * alpha_sqrt_t * (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
         )
 

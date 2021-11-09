@@ -298,18 +298,32 @@ class Engine(pl.LightningModule):
         else:
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
-    # ------------ Sampling and generation utils ----------
-
-    def denoising_step(self, x_t, t, mean_only=False, generator=None):
-        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
+    def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
         epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
         )
         sigma = self.get_sigma(t - 1).to(self.device)
 
-        x_t -= epsilon
-        x_t /= self.alphas[t - 1].to(self.device)
+        x = x_t - epsilon
+        x /= self.alphas[t - 1].to(self.device)
 
+        if clip:
+            x = x.clamp(-1, 1)
+
+        return x
+
+    # ------------ Sampling and generation utils ----------
+
+    def denoising_step(self, x_t, t, mean_only=False, generator=None):
+        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
+        # epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+        #     self.device
+        # )
+        # sigma = self.get_sigma(t - 1).to(self.device)
+        #
+        # x_t -= epsilon
+        # x_t /= self.alphas[t - 1].to(self.device)
+        x_t = self.model_mean_from_epsilon(x_t, t, epsilon, clip=self.clip_while_generating)
         if not mean_only:
             if t > 1:
                 z = torch.randn(
@@ -392,7 +406,8 @@ class Engine(pl.LightningModule):
             predicted_noise = self.model(x_t, t)
             alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
             one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
+            # predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
+            predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
             predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
             predicted_logvar = 2 * th.log(predicted_std)
 
@@ -411,14 +426,14 @@ class Engine(pl.LightningModule):
                 print(t_step)
                 print("mse", torch.mean(mse_i))
                 print("MSE", th.mean(th.pow(mean_t - predicted_mean, 2)))
-                print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
-                print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
-                print("th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2))",
-                      th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2)))
-                print("th.mean(th.pow(predicted_noise, 2))",
-                      th.mean(th.pow(predicted_noise, 2)))
-                print("th.mean(th.pow(alpha_hat_sqrt_t * x0, 2))", th.mean(th.pow(alpha_hat_sqrt_t * x0, 2)))
-                print("th.mean(th.pow(x0, 2))", th.mean(th.pow(x0, 2)))
+                # print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
+                # print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
+                # print("th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2))",
+                #       th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2)))
+                # print("th.mean(th.pow(predicted_noise, 2))",
+                #       th.mean(th.pow(predicted_noise, 2)))
+                # print("th.mean(th.pow(alpha_hat_sqrt_t * x0, 2))", th.mean(th.pow(alpha_hat_sqrt_t * x0, 2)))
+                # print("th.mean(th.pow(x0, 2))", th.mean(th.pow(x0, 2)))
                 print("L_i", L_i)
                 print("kl.shape", kl.shape)
                 print("mean_t.shape", mean_t.shape)

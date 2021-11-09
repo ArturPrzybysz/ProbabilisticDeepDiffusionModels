@@ -388,7 +388,7 @@ class Engine(pl.LightningModule):
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
 
-            if t_step == -2:
+            if t_step == -2: # TODO: Remove - and fix
                 L_i = mean_flat(self.discretized_gaussian_likelihood(x0, mean_t, var_t)) / np.log(2.0)
                 print("!!!\nL_i", L_i, "\n")
             else:

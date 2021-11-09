@@ -49,7 +49,7 @@ def run_training(cfg: DictConfig, model_path=None):
         default_root_dir="training/logs",
         gpus=gpus,
         # limit_train_batches=10,
-        limit_test_batches=250,
+        limit_test_batches=50,
         # **cfg["trainer"],
     )
 

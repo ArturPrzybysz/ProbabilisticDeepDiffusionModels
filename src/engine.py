@@ -333,11 +333,11 @@ class Engine(pl.LightningModule):
         x, _ = batch
         nll = self.calculate_likelihood(x)
         # print(nll)
-        self.log("test_L_0", nll["L_0"])
-        self.log("test_L_intermediate", nll["L_intermediate"])
-        self.log("test_L_T", nll["L_T"])
-        self.log("test_nll", nll["nll"])
-        self.log("test_mse", nll["MSE"])
+        self.log("test_L_0", nll["L_0"], on_step=True, on_epoch=False, prog_bar=False, )
+        self.log("test_L_intermediate", nll["L_intermediate"], on_step=True, on_epoch=False, prog_bar=False, )
+        self.log("test_L_T", nll["L_T"], on_step=True, on_epoch=False, prog_bar=False)
+        self.log("test_nll", nll["nll"], on_step=True, on_epoch=False, prog_bar=True)
+        self.log("test_mse", nll["MSE"], on_step=True, on_epoch=False, prog_bar=False)
 
     def calculate_likelihood(self, x):
         """
@@ -348,11 +348,11 @@ class Engine(pl.LightningModule):
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
         MSE = th.mean(th.stack(MSE_list))
-        print("mse", MSE)
-        print("L_0", th.mean(L_0, dim=0))
-        print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
-        print("L_intermediate", L_intermediate.shape)
-        print("L_T", th.mean(L_T, dim=0))
+        # print("mse", MSE)
+        # print("L_0", th.mean(L_0, dim=0))
+        # print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
+        # print("L_intermediate", L_intermediate.shape)
+        # print("L_T", th.mean(L_T, dim=0))
 
         return {
             "MSE": MSE,  # TODO
@@ -388,7 +388,7 @@ class Engine(pl.LightningModule):
             mean_t, var_t = self.q_posterior(t, x0, x_t)
             predicted_noise = self.model(x_t, t)
 
-            if t_step == -2: # TODO: Remove - and fix
+            if t_step == -2:  # TODO: Remove - and fix
                 L_i = mean_flat(self.discretized_gaussian_likelihood(x0, mean_t, var_t)) / np.log(2.0)
                 print("!!!\nL_i", L_i, "\n")
             else:

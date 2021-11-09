@@ -342,10 +342,11 @@ class Engine(pl.LightningModule):
         """
         Implements eq. (5) from Denoising Diffusion Probabilistic Models
         """
+
         L_0 = self._calculate_L_0(x)
         L_intermediate_list, MSE_list = self._calculate_L_intermediate(x)
         L_T = self._calculate_L_T(x)
-        L_intermediate = th.mean(th.sum(th.stack(L_intermediate_list), dim=0)) # TODO: Confirm with Jan
+        L_intermediate = th.mean(th.sum(th.stack(L_intermediate_list), dim=0))  # TODO: Confirm with Jan
         MSE = th.mean(th.stack(MSE_list))
         # print("mse", MSE)
         # print("L_0", th.mean(L_0, dim=0))
@@ -394,6 +395,8 @@ class Engine(pl.LightningModule):
                 alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
+                print("\n\nMSE!!!", th.mean(th.pow(mean_t - predicted_mean, 2)), "\n\n")
+
                 predicted_std = self.get_sigma(t - 1).to(self.device)
                 predicted_logvar = 2 * th.log(predicted_std).view((-1, 1, 1, 1)).to(self.device)
 

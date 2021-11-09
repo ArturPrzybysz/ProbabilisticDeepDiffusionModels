@@ -396,7 +396,7 @@ class Engine(pl.LightningModule):
                 one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
                 predicted_std = self.get_sigma(t - 1).to(self.device)
-                predicted_logvar = 2 * th.log(predicted_std)
+                predicted_logvar = 2 * th.log(predicted_std).view((-1, 1, 1, 1)).to(self.device)
 
                 logvar_1 = th.log(var_t) * th.ones_like(mean_t)
                 logvar_2 = predicted_logvar * th.ones_like(mean_t)

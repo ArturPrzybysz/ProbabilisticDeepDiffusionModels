@@ -372,7 +372,7 @@ class Engine(pl.LightningModule):
             self.device
         )
 
-        x = (x_t - epsilon * epsilon_scale) / self.alphas[t - 1].to(self.device)
+        x = (x_t - epsilon * epsilon_scale) / self.alphas_sqrt[t - 1].to(self.device)
 
         if clip:
             x = x.clamp(-1, 1)

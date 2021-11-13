@@ -321,12 +321,11 @@ class Engine(pl.LightningModule):
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
     def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
-        epsilon = epsilon * (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+        epsilon_scale = (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
         )
 
-        x = x_t - epsilon
-        x /= self.alphas[t - 1].to(self.device)
+        x = (x_t - epsilon * epsilon_scale) / self.alphas[t - 1].to(self.device)
 
         if clip:
             x = x.clamp(-1, 1)
@@ -366,19 +365,22 @@ class Engine(pl.LightningModule):
         self.log("test_L_T", nll["L_T"])
         self.log("test_nll", nll["nll"])
         self.log("test_mse", nll["MSE"])
+        self.log("test_mse_means", nll["MSE_means"])
 
     def calculate_likelihood(self, x):
         """
         Implements eq. (5) from Denoising Diffusion Probabilistic Models
         """
         L_0 = self._calculate_L_0(x)
-        L_intermediate_list, MSE_list = self._calculate_L_intermediate(x)
+        L_intermediate_list, MSE_list, MSE_means_list = self._calculate_L_intermediate(x)
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
         MSE = th.mean(th.stack(MSE_list))
+        MSE_means = th.mean(th.stack(MSE_means_list))
 
         return {
             "MSE": MSE,  # TODO
+            "MSE_means": MSE_means,
             "MSE_list": MSE_list,  # TODO
             "L_0": th.mean(L_0, dim=0),
             "L_intermediate": L_intermediate,
@@ -403,6 +405,7 @@ class Engine(pl.LightningModule):
         """
         L_intermediate_list = []
         MSE_list = []
+        MSE_means_list = []
         batch_size = x0.shape[0]
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
         for t_step in range(2, self.diffusion_steps + 1):
@@ -422,10 +425,12 @@ class Engine(pl.LightningModule):
 
             L_intermediate_list.append(L_i)
 
-            mse_i = th.pow(predicted_noise - noise, 2)
+            mse_i = mean_flat(th.pow(predicted_noise - noise, 2))
             MSE_list.append(mse_i)
+            mse_means_i = mean_flat(th.pow(predicted_mean - mean_t, 2))
+            MSE_means_list.append(mse_means_i)
 
-        return L_intermediate_list, MSE_list
+        return L_intermediate_list, MSE_list, MSE_means_list
 
     def q_posterior(self, t, x0, x_t):
         """

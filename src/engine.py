@@ -112,7 +112,7 @@ class Engine(pl.LightningModule):
         self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.alphas_hat - 1)
 
         self.posterior_mean_coef1 = (
-            self.betas * np.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_cumprod)
+            self.betas * np.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
         self.posterior_mean_coef2 = (
             (1.0 - self.alphas_hat_prev)
@@ -341,6 +341,8 @@ class Engine(pl.LightningModule):
     def model_mean_std(self, x_t, t, t_step):
         predicted_noise = self.model(x_t, t)
         predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
+        # predicted_mean = self.model_mean_through_start(x_t, t_step, predicted_noise)
+        # predicted_mean = self.model_mean_through_start(x_t, t_step, predicted_noise, clip=True)
         predicted_std = self.get_sigma(t_step - 1).to(self.device)  # TODO: Check indexing xD
         return predicted_noise, predicted_mean, predicted_std
 

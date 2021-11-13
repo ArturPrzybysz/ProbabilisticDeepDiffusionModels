@@ -102,17 +102,17 @@ class Engine(pl.LightningModule):
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
 
-        self.alphas_hat_prev = np.append(1.0, self.alphas_hat[:-1])
-        self.alphas_hat_next = np.append(self.alphas_hat[1:], 0.0)
+        self.alphas_hat_prev = torch.from_numpy(np.append(1.0, self.alphas_hat[:-1].numpy()))
+        self.alphas_hat_next = torch.from_numpy(np.append(self.alphas_hat[1:].numpy(), 0.0))
         self.posterior_variance = (
                 self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
         # TODO: what's that?
-        self.sqrt_recip_alphas_cumprod = np.sqrt(1.0 / self.alphas_hat)
-        self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.alphas_hat - 1)
+        self.sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / self.alphas_hat)
+        self.sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / self.alphas_hat - 1)
 
         self.posterior_mean_coef1 = (
-            self.betas * np.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+            self.betas * torch.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
         self.posterior_mean_coef2 = (
             (1.0 - self.alphas_hat_prev)

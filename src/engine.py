@@ -107,6 +107,31 @@ class Engine(pl.LightningModule):
         self.posterior_variance = (
                 self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
+        # TODO: what's that?
+        self.sqrt_recip_alphas_cumprod = np.sqrt(1.0 / self.alphas_hat)
+        self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.alphas_hat - 1)
+
+        self.posterior_mean_coef1 = (
+            self.betas * np.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_cumprod)
+        )
+        self.posterior_mean_coef2 = (
+            (1.0 - self.alphas_hat_prev)
+            * self.alphas_sqrt
+            / (1.0 - self.alphas_hat)
+        )
+        np.save("/scratch/s193223/debug/betas.npy", np.array(self.betas))
+        np.save("/scratch/s193223/debug/alphas.npy", np.array(self.alphas))
+        np.save("/scratch/s193223/debug/alphas_sqrt.npy", np.array(self.alphas_sqrt))
+        np.save("/scratch/s193223/debug/alphas_hat.npy", np.array(self.alphas_hat))
+        np.save("/scratch/s193223/debug/alphas_hat_sqrt.npy", np.array(self.alphas_hat_sqrt))
+        np.save("/scratch/s193223/debug/one_min_alphas_hat_sqrt.npy", np.array(self.one_min_alphas_hat_sqrt))
+        np.save("/scratch/s193223/debug/alphas_hat_prev.npy", np.array(self.alphas_hat_prev))
+        np.save("/scratch/s193223/debug/alphas_hat_next.npy", np.array(self.alphas_hat_next))
+        np.save("/scratch/s193223/debug/posterior_variance.npy", np.array(self.posterior_variance))
+        np.save("/scratch/s193223/debug/posterior_mean_coef1.npy", np.array(self.posterior_mean_coef1))
+        np.save("/scratch/s193223/debug/posterior_mean_coef2.npy", np.array(self.posterior_mean_coef2))
+
+        self.save_debug()
 
         self.loss_per_t = StepwiseLog(diffusion_steps, 10)
         self.loss_per_t_epoch = StepwiseLog(diffusion_steps)
@@ -126,6 +151,14 @@ class Engine(pl.LightningModule):
 
         self.scheduler_name = scheduler_name
         self.scheduler_kwargs = scheduler_kwargs
+
+    def save_debug(self):
+        epsilon_scales = []
+        for t in range(1, self.diffusion_steps + 1):
+            epsilon_scale = (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).numpy()
+            epsilon_scales.append(epsilon_scale)
+
+        np.save("/scratch/s193223/debug/epsilon_scales.npy", np.array(epsilon_scales))
 
     @contextmanager
     def ema_on(self):
@@ -320,6 +353,18 @@ class Engine(pl.LightningModule):
         else:
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
+    def xstart_from_epsilon(self, x_t, t, epsilon, clip=False):
+        x = self.sqrt_recip_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * x_t \
+            - self.sqrt_recipm1_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * epsilon
+        if clip:
+            x = x.clamp(-1, 1)
+        return x
+
+    def model_mean_through_start(self, x_t, t, epsilon, clip=False):
+        xstart = self.xstart_from_epsilon(x_t, t, epsilon, clip=clip)
+        model_mean, _ = self.q_posterior(t, xstart, x_t)
+        return model_mean
+
     def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
         epsilon_scale = (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
@@ -465,21 +510,13 @@ class Engine(pl.LightningModule):
         """
         Returns mean and variance of q(x_t-1 | x_t, x_0) following eq. (6) and (7)
         """
-        alpha_hat_sqrt_t_min_1 = self.alphas_hat_sqrt[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t_min1 = self.alphas_hat[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-
         mean_t = (
-                x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
+                x0 * self.posterior_mean_coef1[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 +
-                x_t * alpha_sqrt_t * (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
+                x_t * self.posterior_mean_coef2[t - 1].view((-1, 1, 1, 1)).to(self.device)
         )
 
-        var_t = beta_t * (
-                (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
-        )
+        var_t = self.posterior_variance[t - 1].view((-1, 1, 1, 1)).to(self.device)
         return mean_t, var_t
 
     def _calculate_L_0(self, x):

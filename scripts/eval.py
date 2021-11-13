@@ -16,13 +16,19 @@ from src.datasets.data import get_dataloader
 from src.engine import Engine
 from src.wandb_util import download_file
 
-wandb.init(project="diffusion", entity="ddpm")
+def init_wandb(cfg):
+    api = wandb.Api()
+    wandb.init(project="diffusion", entity="ddpm", tags=["eval", cfg["run_id"]])
+    run = api.run(f"ddpm/diffusion/{cfg['run_id']}")
+    run_name = "EVAL_" + run.name + "-" + wandb.run.name.split("-")[-1]
+    wandb.run.name = run_name
+    wandb.run.save()
 
 
 @hydra.main(config_path="../config", config_name="eval")
 def run_training(cfg: DictConfig, model_path=None):
     print(OmegaConf.to_yaml(cfg))
-
+    init_wandb(cfg)
     if model_path:
         """Use this for evaluation during the training by passing the path to the model.
         Otherwise, model from the config will used, determined by the run id"""

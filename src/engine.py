@@ -269,6 +269,22 @@ class Engine(pl.LightningModule):
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
+        if self.ema is not None:
+            x, y = batch
+            batch_size = x.shape[0]
+            t, weights = self.val_sampler(batch_size, self.device)
+            noise = torch.randn_like(x)
+            x_t = self.get_q_t(x, noise, t)
+            predicted_noise = self.model(x_t, t)
+
+            loss = self.get_loss(
+                predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
+            )
+            self.log("val_loss_ema", loss, on_step=False, on_epoch=True, prog_bar=True)
+
+
+
+
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
@@ -339,7 +355,8 @@ class Engine(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, _ = batch
-        nll = self.calculate_likelihood(x)
+        with self.ema_on():
+            nll = self.calculate_likelihood(x)
         self.log("test_L_0", nll["L_0"])
         self.log("test_L_intermediate", nll["L_intermediate"])
         self.log("test_L_T", nll["L_T"])

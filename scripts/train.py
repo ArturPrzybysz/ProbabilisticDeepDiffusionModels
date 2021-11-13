@@ -146,6 +146,7 @@ def run_training(cfg: DictConfig):
         trainer.fit(
             engine, train_dataloader=dataloader_train, val_dataloaders=dataloader_val
         )
+        trainer.test(engine, test_dataloaders=dataloader_val)
     except Exception as e:
         # for some reason errors get truncated here, so need to catch and raise again
         # probably hydra's fault

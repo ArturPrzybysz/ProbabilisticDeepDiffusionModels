@@ -6,5 +6,5 @@ class UniformSampler:
         self.diffusion_steps = diffusion_steps
 
     def __call__(self, batch_size, device):
-        t = torch.randint(1, self.diffusion_steps, (batch_size,), device=device)
+        t = torch.randint(1, self.diffusion_steps + 1, (batch_size,), device=device)
         return t, None

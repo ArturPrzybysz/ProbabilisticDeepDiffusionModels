@@ -10,6 +10,7 @@ trainer:
   check_val_every_n_epoch: 2
   limit_test_batches: 100
 cont_run: null
+patience: 20
 defaults:
   - model: unet_small_grey
   - data: mnist

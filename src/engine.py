@@ -8,7 +8,6 @@ import torch as th
 
 import pytorch_lightning as pl
 
-# from torch_ema import ExponentialMovingAverage
 import wandb
 from tqdm import tqdm
 
@@ -141,10 +140,15 @@ class Engine(pl.LightningModule):
                 self.model = self.original_model
 
     def on_epoch_end(self) -> None:
+        if isinstance(self.sampler, ImportanceSampler):
+            print("self.sampler._ready: ", self.sampler._ready)
+            if not self.sampler._ready:
+                print(pd.Series(self.loss_per_t.n_per_step).value_counts())
+
         # log loss per Q
         for i in range(4):
             self.log(
-                f"loss_q{i + 1}",
+                f"loss_q{i+1}",
                 self.loss_per_t_epoch.get_avg_in_range(
                     max(1, int(i * self.diffusion_steps / 4)),
                     int((i + 1) * self.diffusion_steps / 4),
@@ -202,13 +206,17 @@ class Engine(pl.LightningModule):
             return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
     # ------------ Training and diffusion stuff ----------
+    def q_mean_std(self, x, t):
+        """
+        TODO: explain
+        """
+        mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
+        return mean, std
 
     def get_q_t(self, x, noise, t):
-        return (
-                x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-                + self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-                * noise
-        )
+        mean, std = self.q_mean_std(x, t)
+        return mean + noise * std
 
     def get_loss(
             self, predicted_noise, target_noise,  x, x_t, t, weights=None, update_loss_log=True
@@ -269,13 +277,7 @@ class Engine(pl.LightningModule):
         )
 
         if self.ema is not None:
-            x, y = batch
-            batch_size = x.shape[0]
-            t, weights = self.val_sampler(batch_size, self.device)
-            noise = torch.randn_like(x)
-            x_t = self.get_q_t(x, noise, t)
             predicted_noise = self.model(x_t, t)
-
             loss_ema = self.get_loss(
                 predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
             )
@@ -306,7 +308,7 @@ class Engine(pl.LightningModule):
     def model_mean_std(self, x_t, t, t_step):
         predicted_noise = self.model(x_t, t)
         predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
-        predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
+        predicted_std = self.get_sigma(t_step - 1).to(self.device)  # TODO: Check indexing xD
         return predicted_noise, predicted_mean, predicted_std
 
     def get_sigma(self, t):

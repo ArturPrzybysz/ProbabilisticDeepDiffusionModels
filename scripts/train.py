@@ -44,6 +44,12 @@ def init_wandb(cfg):
     ):
         tags.append("grad_clip")
 
+    if (
+            "precision" in cfg["trainer"]
+            and cfg["trainer"]["precision"] == 16
+    ):
+        tags.append("fp16")
+
     wandb.init(
         project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/", tags=tags
     )
@@ -68,7 +74,7 @@ def run_training(cfg: DictConfig):
 
     callbacks = []
     callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval="step"))
-    callbacks.append(pl.callbacks.EarlyStopping(patience=20, monitor="val_loss"))
+    callbacks.append(pl.callbacks.EarlyStopping(patience=cfg["patience"], monitor="val_loss"))
     callbacks.append(
         pl.callbacks.ModelCheckpoint(
             dirpath=wandb.run.dir,

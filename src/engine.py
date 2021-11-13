@@ -20,7 +20,7 @@ from src.modules.ema import Ema
 from src.modules.stepwise_log import StepwiseLog
 from src.sampling.importance_sampler import ImportanceSampler
 from src.sampling.uniform_sampler import UniformSampler
-from src.utils import mean_flat, get_generator_if_specified, normal_kl
+from src.utils import mean_flat, get_generator_if_specified, normal_kl, discretized_gaussian_log_likelihood
 import matplotlib.pyplot as plt
 
 
@@ -141,11 +141,6 @@ class Engine(pl.LightningModule):
                 self.model = self.original_model
 
     def on_epoch_end(self) -> None:
-        if isinstance(self.sampler, ImportanceSampler):
-            print("self.sampler._ready: ", self.sampler._ready)
-            if not self.sampler._ready:
-                print(pd.Series(self.loss_per_t.n_per_step).value_counts())
-
         # log loss per Q
         for i in range(4):
             self.log(
@@ -289,6 +284,12 @@ class Engine(pl.LightningModule):
         )
         return total_norm
 
+    def model_mean_std(self, x_t, t, t_step):
+        predicted_noise = self.model(x_t, t)
+        predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
+        predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
+        return predicted_noise, predicted_mean, predicted_std
+
     def get_sigma(self, t):
         if self.sigma_mode == "beta":
             return torch.sqrt(self.betas[t])  # TODO: Check indexing xD
@@ -302,7 +303,6 @@ class Engine(pl.LightningModule):
         epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
         )
-        sigma = self.get_sigma(t - 1).to(self.device)
 
         x = x_t - epsilon
         x /= self.alphas[t - 1].to(self.device)
@@ -314,16 +314,9 @@ class Engine(pl.LightningModule):
 
     # ------------ Sampling and generation utils ----------
 
-    def denoising_step(self, x_t, t, mean_only=False, generator=None):
-        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
-        # epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-        #     self.device
-        # )
-        # sigma = self.get_sigma(t - 1).to(self.device)
-        #
-        # x_t -= epsilon
-        # x_t /= self.alphas[t - 1].to(self.device)
-        x_t = self.model_mean_from_epsilon(x_t, t, epsilon, clip=self.clip_while_generating)
+    def denoising_step(self, x_t, t_step, mean_only=False, generator=None):
+        t = t_step * torch.ones(x_t.shape[0], device=self.device)
+        _, x_t, sigma = self.model_mean_std(x_t, t, t_step)
         if not mean_only:
             if t > 1:
                 z = torch.randn(
@@ -364,8 +357,8 @@ class Engine(pl.LightningModule):
         MSE = th.mean(th.stack(MSE_list))
         print("mse", MSE)
         print("L_0", th.mean(L_0, dim=0))
-        print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
-        print("L_intermediate", L_intermediate.shape)
+        # print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
+        print("L_intermediate", L_intermediate)
         print("L_T", th.mean(L_T, dim=0))
 
         return {
@@ -384,9 +377,8 @@ class Engine(pl.LightningModule):
         """
         q_mean, q_std = self.q_mean_std(x, self.diffusion_steps)
         p_mean, p_logvar = 0.0, 0.0
-        # print(q_mean, q_std)
-        # p_mean, p_logvar = th.zeros_like(q_mean), th.zeros_like(q_std)
-        return torch.mean(normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar), dim=[1,2,3])
+        L_T = normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar)
+        return mean_flat(L_T) / np.log(2.0)
 
     def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor]]:
         """
@@ -396,58 +388,26 @@ class Engine(pl.LightningModule):
         L_intermediate_list = []
         MSE_list = []
         batch_size = x0.shape[0]
-        # print("x0.shape", x0.shape)
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
         for t_step in tqdm(range(2, self.diffusion_steps + 1)):
             t = batches * t_step
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)
             mean_t, var_t = self.q_posterior(t, x0, x_t)
-            predicted_noise = self.model(x_t, t)
-            alpha_hat_sqrt_t = self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            one_minus_alpha_hat_sqrt_t = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
-            # predicted_mean = alpha_hat_sqrt_t * x0 + one_minus_alpha_hat_sqrt_t * predicted_noise
-            predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
-            predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
+
+            predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
             predicted_logvar = 2 * th.log(predicted_std)
 
             logvar_1 = th.log(var_t) * th.ones_like(mean_t)
             logvar_2 = predicted_logvar * th.ones_like(mean_t)
             kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
                             mean2=predicted_mean, logvar2=logvar_2)
-            # L_i = torch.mean(L_i, dim=[1,2,3]) # mean over dimensions except batch dim
             L_i = mean_flat(kl) / np.log(2.0)
 
             L_intermediate_list.append(L_i)
 
             mse_i = th.pow(predicted_noise - noise, 2)
             MSE_list.append(mse_i)
-            if t_step % 100 == 0:
-                print(t_step)
-                print("mse", torch.mean(mse_i))
-                print("MSE", th.mean(th.pow(mean_t - predicted_mean, 2)))
-                # print("one_minus_alpha_hat_sqrt_t", one_minus_alpha_hat_sqrt_t)
-                # print("alpha_hat_sqrt_t", alpha_hat_sqrt_t)
-                # print("th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2))",
-                #       th.mean(th.pow(one_minus_alpha_hat_sqrt_t * predicted_noise, 2)))
-                # print("th.mean(th.pow(predicted_noise, 2))",
-                #       th.mean(th.pow(predicted_noise, 2)))
-                # print("th.mean(th.pow(alpha_hat_sqrt_t * x0, 2))", th.mean(th.pow(alpha_hat_sqrt_t * x0, 2)))
-                # print("th.mean(th.pow(x0, 2))", th.mean(th.pow(x0, 2)))
-                print("L_i", L_i)
-                print("kl.shape", kl.shape)
-                print("mean_t.shape", mean_t.shape)
-                print("predicted_mean.shape", predicted_mean.shape)
-                print("logvar_1.shape", logvar_1)
-                print("logvar_2.shape", logvar_2)
-
-                print("mean_flat(kl) / np.log(2.0)", mean_flat(kl) / np.log(2.0))
-                print("mean_flat(kl)", mean_flat(kl))
-                print("np.log(2.0)", np.log(2.0))
-                print("torch.mean(L_i, dim=[1,2,3])", torch.mean(kl, dim=[1,2,3]))
-                print("posterior_variance", var_t)
-                print("posterior logvariance", th.log(var_t))
-                print("predicted logvar", predicted_logvar)
 
         return L_intermediate_list, MSE_list
 
@@ -460,14 +420,6 @@ class Engine(pl.LightningModule):
         alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
         alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
         beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-
-        # print("alpha_hat_sqrt_t_min_1", alpha_hat_sqrt_t_min_1.shape)
-        # print("alpha_hat_t_min1", alpha_hat_t_min1.shape)
-        # print("alpha_sqrt_t", alpha_sqrt_t.shape)
-        # print("alpha_hat_t", alpha_hat_t.shape)
-        # print("beta_t", beta_t.shape)
-        # print("x0", x0.shape)
-        # print("xt", x_t.shape)
 
         mean_t = (
                 x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
@@ -484,7 +436,17 @@ class Engine(pl.LightningModule):
         """
         reconstruction likelihood: -log(p(x_0 | x_1))
         """
-        return th.Tensor([0]).to(self.device)
+        t_step = 1
+        t =th.ones(x.shape[0], dtype=th.int64, device=self.device)
+        noise = torch.randn_like(x)
+        x_t = self.get_q_t(x, noise, t)
+
+        predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
+        predicted_logscales = th.log(predicted_std)
+
+        decoder_nll = -discretized_gaussian_log_likelihood(x, predicted_mean, predicted_logscales)
+        decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+        return decoder_nll
 
     def q_mean_std(self, x, t):
         """

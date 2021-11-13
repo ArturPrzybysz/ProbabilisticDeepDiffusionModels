@@ -384,7 +384,7 @@ class Engine(pl.LightningModule):
         MSE_list = []
         batch_size = x0.shape[0]
         batches = th.ones(batch_size, dtype=th.int64, device=self.device)
-        for t_step in tqdm(range(2, self.diffusion_steps + 1)):
+        for t_step in range(2, self.diffusion_steps + 1):
             t = batches * t_step
             noise = torch.randn_like(x0)
             x_t = self.get_q_t(x0, noise, t)

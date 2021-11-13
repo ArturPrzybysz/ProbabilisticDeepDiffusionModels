@@ -375,6 +375,7 @@ class Engine(pl.LightningModule):
         L_intermediate_list, MSE_list, MSE_means_list = self._calculate_L_intermediate(x)
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
+        print('L_intermediate', th.mean(th.stack(L_intermediate_list), dim=1))
         MSE = th.mean(th.stack(MSE_list))
         MSE_means = th.mean(th.stack(MSE_means_list))
 
@@ -398,7 +399,7 @@ class Engine(pl.LightningModule):
         L_T = normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar)
         return mean_flat(L_T) / np.log(2.0)
 
-    def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor]]:
+    def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor], List[th.Tensor]]:
         """
         KL divergence of intermediate steps in [1, T-1] as:
         sum of KL divergences of (q(x_t−1 | x_t , x_0 ) || p_theta (x_t−1|x_t ))
@@ -415,6 +416,12 @@ class Engine(pl.LightningModule):
             mean_t, var_t = self.q_posterior(t, x0, x_t)
 
             predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
+
+            mse_i = mean_flat(th.pow(predicted_noise - noise, 2))
+            MSE_list.append(mse_i)
+            mse_means_i = mean_flat(th.pow(predicted_mean - mean_t, 2))
+            MSE_means_list.append(mse_means_i)
+
             predicted_logvar = 2 * th.log(predicted_std)
 
             logvar_1 = th.log(var_t) * th.ones_like(mean_t)
@@ -425,10 +432,6 @@ class Engine(pl.LightningModule):
 
             L_intermediate_list.append(L_i)
 
-            mse_i = mean_flat(th.pow(predicted_noise - noise, 2))
-            MSE_list.append(mse_i)
-            mse_means_i = mean_flat(th.pow(predicted_mean - mean_t, 2))
-            MSE_means_list.append(mse_means_i)
 
         return L_intermediate_list, MSE_list, MSE_means_list
 

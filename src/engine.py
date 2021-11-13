@@ -267,7 +267,6 @@ class Engine(pl.LightningModule):
         loss = self.get_loss(
             predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
         )
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         if self.ema is not None:
             x, y = batch
@@ -277,10 +276,13 @@ class Engine(pl.LightningModule):
             x_t = self.get_q_t(x, noise, t)
             predicted_noise = self.model(x_t, t)
 
-            loss = self.get_loss(
+            loss_ema = self.get_loss(
                 predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
             )
-            self.log("val_loss_ema", loss, on_step=False, on_epoch=True, prog_bar=True)
+            self.log("val_loss_no_ema", loss, on_step=False, on_epoch=True, prog_bar=False)
+            self.log("val_loss", loss_ema, on_step=False, on_epoch=True, prog_bar=True)
+        else:
+            self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
 
 

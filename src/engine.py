@@ -321,7 +321,7 @@ class Engine(pl.LightningModule):
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
     def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
-        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
+        epsilon = epsilon * (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
         )
 
@@ -463,18 +463,6 @@ class Engine(pl.LightningModule):
         decoder_nll = -discretized_gaussian_log_likelihood(x, predicted_mean, predicted_logscales)
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
         return decoder_nll
-
-    def q_mean_std(self, x, t):
-        """
-        TODO: explain
-        """
-        mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
-        std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
-        return mean, std
-
-    # def get_q_t(self, x, noise, t):
-    #     mean, std = self.q_mean_std(x, t)
-    #     return mean + noise * std
 
     # ------------ Image generation endpoints ----------
 

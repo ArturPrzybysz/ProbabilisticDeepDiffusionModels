@@ -16,7 +16,7 @@ torchvision = "^0.10.0"
 matplotlib = "^3.4.3"
 tqdm = "^4.62.2"
 pandas = "^1.3.3"
-pytorch_ema = { git = "https://github.com/fadel/pytorch_ema", branch = "master" }
+plotly = "^5.3.1"
 
 
 [tool.poetry.dev-dependencies]

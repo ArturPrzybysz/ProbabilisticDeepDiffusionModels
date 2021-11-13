@@ -1,12 +1,15 @@
 import math
 from collections import defaultdict
 from contextlib import contextmanager
+from typing import List, Tuple
 
 import torch
+import torch as th
+
 import pytorch_lightning as pl
 
-# from torch_ema import ExponentialMovingAverage
 import wandb
+from tqdm import tqdm
 
 from src.modules import get_model
 import numpy as np
@@ -16,8 +19,9 @@ from src.modules.ema import Ema
 from src.modules.stepwise_log import StepwiseLog
 from src.sampling.importance_sampler import ImportanceSampler
 from src.sampling.uniform_sampler import UniformSampler
-from src.utils import mean_flat, get_generator_if_specified
+from src.utils import mean_flat, get_generator_if_specified, normal_kl, discretized_gaussian_log_likelihood
 import matplotlib.pyplot as plt
+
 
 # TODO: what is this
 def alpha_bar(t):
@@ -25,7 +29,7 @@ def alpha_bar(t):
 
 
 def get_betas(
-    beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999
+        beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999
 ):
     if mode == "linear":
         if beta_start is None or beta_end is None:
@@ -48,20 +52,20 @@ def get_betas(
 
 class Engine(pl.LightningModule):
     def __init__(
-        self,
-        model_config,
-        optimizer_config,
-        diffusion_steps=1000,
-        beta_start=None,
-        beta_end=None,
-        mode="linear",
-        sigma_mode="beta",
-        resolution=32,
-        clip_while_generating=True,
-        sampling="uniform",
-        ema=None,
-        scheduler_name=None,
-        scheduler_kwargs=None,
+            self,
+            model_config,
+            optimizer_config,
+            diffusion_steps=1000,
+            beta_start=None,
+            beta_end=None,
+            mode="linear",
+            sigma_mode="beta",
+            resolution=32,
+            clip_while_generating=True,
+            sampling="uniform",
+            ema=None,
+            scheduler_name=None,
+            scheduler_kwargs=None,
     ):
         super(Engine, self).__init__()
         self.save_hyperparameters()  # ??
@@ -91,6 +95,7 @@ class Engine(pl.LightningModule):
             self.device
         )
         self.alphas = 1 - self.betas
+        self.alphas_sqrt = th.sqrt(self.alphas)
         # print(self.alphas)
         self.alphas_hat = torch.cumprod(self.alphas, 0)
         # print(self.alphas_hat)
@@ -100,7 +105,7 @@ class Engine(pl.LightningModule):
         self.alphas_hat_prev = np.append(1.0, self.alphas_hat[:-1])
         self.alphas_hat_next = np.append(self.alphas_hat[1:], 0.0)
         self.posterior_variance = (
-            self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+                self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
 
         self.loss_per_t = StepwiseLog(diffusion_steps, 10)
@@ -214,7 +219,7 @@ class Engine(pl.LightningModule):
         return mean + noise * std
 
     def get_loss(
-        self, predicted_noise, target_noise, t, weights=None, update_loss_log=True
+            self, predicted_noise, target_noise,  x, x_t, t, weights=None, update_loss_log=True
     ):
         loss = mean_flat(torch.square(target_noise - predicted_noise))
         if update_loss_log:
@@ -237,7 +242,7 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
         loss = self.get_loss(
-            predicted_noise, noise, weights=weights, t=t, update_loss_log=True
+            predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=True
         )
 
         total_norm = self.compute_grad_norm(self.model.parameters())
@@ -266,18 +271,23 @@ class Engine(pl.LightningModule):
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
+
         loss = self.get_loss(
-            predicted_noise, noise, weights=weights, t=t, update_loss_log=False
+            predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
         )
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         if self.ema is not None:
-            with self.ema_on():
-                predicted_noise = self.model(x_t, t)
-                loss = self.get_loss(
-                    predicted_noise, noise, weights=weights, t=t, update_loss_log=False
-                )
-                self.log("val_loss_ema", loss, on_step=False, on_epoch=True, prog_bar=True)
+            predicted_noise = self.model(x_t, t)
+            loss_ema = self.get_loss(
+                predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
+            )
+            self.log("val_loss_no_ema", loss, on_step=False, on_epoch=True, prog_bar=False)
+            self.log("val_loss", loss_ema, on_step=False, on_epoch=True, prog_bar=True)
+        else:
+            self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+
+
+
 
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
@@ -295,27 +305,39 @@ class Engine(pl.LightningModule):
         )
         return total_norm
 
+    def model_mean_std(self, x_t, t, t_step):
+        predicted_noise = self.model(x_t, t)
+        predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
+        predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
+        return predicted_noise, predicted_mean, predicted_std
+
     def get_sigma(self, t):
         if self.sigma_mode == "beta":
-            return torch.sqrt(self.betas[t])
+            return torch.sqrt(self.betas[t])  # TODO: Check indexing xD
         elif self.sigma_mode == "beta_tilde":
-            variance = self.posterior_variance[t]
+            variance = self.posterior_variance[t]  # TODO: Check indexing xD
             return torch.sqrt(variance)
         else:
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
-    # ------------ Sampling and generation utils ----------
-
-    def denoising_step(self, x_t, t, mean_only=False, generator=None):
-        epsilon = self.model(x_t, t * torch.ones(x_t.shape[0]).to(self.device))
+    def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
         epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
             self.device
         )
-        sigma = self.get_sigma(t - 1).to(self.device)
 
-        x_t -= epsilon
-        x_t /= self.alphas[t - 1].to(self.device)
+        x = x_t - epsilon
+        x /= self.alphas[t - 1].to(self.device)
 
+        if clip:
+            x = x.clamp(-1, 1)
+
+        return x
+
+    # ------------ Sampling and generation utils ----------
+
+    def denoising_step(self, x_t, t_step, mean_only=False, generator=None):
+        t = t_step * torch.ones(x_t.shape[0], device=self.device)
+        _, x_t, sigma = self.model_mean_std(x_t, t, t_step)
         if not mean_only:
             if t > 1:
                 z = torch.randn(
@@ -333,18 +355,139 @@ class Engine(pl.LightningModule):
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 
+    # ------------ TEST ----------
+
+    def test_step(self, batch, batch_idx):
+        x, _ = batch
+        with self.ema_on():
+            nll = self.calculate_likelihood(x)
+        self.log("test_L_0", nll["L_0"])
+        self.log("test_L_intermediate", nll["L_intermediate"])
+        self.log("test_L_T", nll["L_T"])
+        self.log("test_nll", nll["nll"])
+        self.log("test_mse", nll["MSE"])
+
+    def calculate_likelihood(self, x):
+        """
+        Implements eq. (5) from Denoising Diffusion Probabilistic Models
+        """
+        L_0 = self._calculate_L_0(x)
+        L_intermediate_list, MSE_list = self._calculate_L_intermediate(x)
+        L_T = self._calculate_L_T(x)
+        L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
+        MSE = th.mean(th.stack(MSE_list))
+
+        return {
+            "MSE": MSE,  # TODO
+            "MSE_list": MSE_list,  # TODO
+            "L_0": th.mean(L_0, dim=0),
+            "L_intermediate": L_intermediate,
+            "L_T": th.mean(L_T, dim=0),
+            "nll": th.mean(L_0 + L_intermediate + L_T, dim=0),
+            "L_intermediate_list": L_intermediate_list,
+        }
+
+    def _calculate_L_T(self, x):
+        """
+        KL divergence of latent || prior: D_KL (q(x_T |x_0 ) || p(x_T )
+        """
+        q_mean, q_std = self.q_mean_std(x, self.diffusion_steps)
+        p_mean, p_logvar = 0.0, 0.0
+        L_T = normal_kl(q_mean, 2 * th.log(q_std), p_mean, p_logvar)
+        return mean_flat(L_T) / np.log(2.0)
+
+    def _calculate_L_intermediate(self, x0) -> Tuple[List[th.Tensor], List[th.Tensor]]:
+        """
+        KL divergence of intermediate steps in [1, T-1] as:
+        sum of KL divergences of (q(x_t−1 | x_t , x_0 ) || p_theta (x_t−1|x_t ))
+        """
+        L_intermediate_list = []
+        MSE_list = []
+        batch_size = x0.shape[0]
+        batches = th.ones(batch_size, dtype=th.int64, device=self.device)
+        for t_step in range(2, self.diffusion_steps + 1):
+            t = batches * t_step
+            noise = torch.randn_like(x0)
+            x_t = self.get_q_t(x0, noise, t)
+            mean_t, var_t = self.q_posterior(t, x0, x_t)
+
+            predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
+            predicted_logvar = 2 * th.log(predicted_std)
+
+            logvar_1 = th.log(var_t) * th.ones_like(mean_t)
+            logvar_2 = predicted_logvar * th.ones_like(mean_t)
+            kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
+                            mean2=predicted_mean, logvar2=logvar_2)
+            L_i = mean_flat(kl) / np.log(2.0)
+
+            L_intermediate_list.append(L_i)
+
+            mse_i = th.pow(predicted_noise - noise, 2)
+            MSE_list.append(mse_i)
+
+        return L_intermediate_list, MSE_list
+
+    def q_posterior(self, t, x0, x_t):
+        """
+        Returns mean and variance of q(x_t-1 | x_t, x_0) following eq. (6) and (7)
+        """
+        alpha_hat_sqrt_t_min_1 = self.alphas_hat_sqrt[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
+        alpha_hat_t_min1 = self.alphas_hat[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
+        alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
+        alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
+        beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
+
+        mean_t = (
+                x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
+                +
+                x_t * alpha_sqrt_t * (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
+        )
+
+        var_t = beta_t * (
+                (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
+        )
+        return mean_t, var_t
+
+    def _calculate_L_0(self, x):
+        """
+        reconstruction likelihood: -log(p(x_0 | x_1))
+        """
+        t_step = 1
+        t =th.ones(x.shape[0], dtype=th.int64, device=self.device)
+        noise = torch.randn_like(x)
+        x_t = self.get_q_t(x, noise, t)
+
+        predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
+        predicted_logscales = th.log(predicted_std) * th.ones_like(x)
+
+        decoder_nll = -discretized_gaussian_log_likelihood(x, predicted_mean, predicted_logscales)
+        decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+        return decoder_nll
+
+    def q_mean_std(self, x, t):
+        """
+        TODO: explain
+        """
+        mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
+        std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
+        return mean, std
+
+    # def get_q_t(self, x, noise, t):
+    #     mean, std = self.q_mean_std(x, t)
+    #     return mean + noise * std
+
     # ------------ Image generation endpoints ----------
 
     @torch.no_grad()
     def sample_and_return_steps(
-        self,
-        x_t,
-        t_start=None,
-        steps_to_return=(1,),
-        mean_only=False,
-        generator=None,
-        seed=None,
-        return_stds=False,
+            self,
+            x_t,
+            t_start=None,
+            steps_to_return=(1,),
+            mean_only=False,
+            generator=None,
+            seed=None,
+            return_stds=False,
     ):
         """Returns shape [B, STEPS, C, W, H]"""
         if t_start is None:
@@ -403,7 +546,7 @@ class Engine(pl.LightningModule):
 
     @torch.no_grad()
     def generate_images_grid(
-        self, steps_to_return, n=1, minibatch=4, mean_only=False, seed=None
+            self, steps_to_return, n=1, minibatch=4, mean_only=False, seed=None
     ):
         self.eval()
         generator = get_generator_if_specified(seed, device=self.device)
@@ -454,13 +597,13 @@ class Engine(pl.LightningModule):
 
     @torch.no_grad()
     def diffuse_and_reconstruct_grid(
-        self,
-        x0,
-        t_start=None,
-        steps_to_return=(1,),
-        seed=None,
-        mean_only=False,
-        return_stds=False,
+            self,
+            x0,
+            t_start=None,
+            steps_to_return=(1,),
+            seed=None,
+            mean_only=False,
+            return_stds=False,
     ):
         """Will apply forward process to x0 up to t steps and then reconstruct, finally return all selected steps."""
         self.eval()

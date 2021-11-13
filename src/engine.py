@@ -340,7 +340,6 @@ class Engine(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, _ = batch
         nll = self.calculate_likelihood(x)
-        # print(nll)
         self.log("test_L_0", nll["L_0"])
         self.log("test_L_intermediate", nll["L_intermediate"])
         self.log("test_L_T", nll["L_T"])
@@ -356,11 +355,6 @@ class Engine(pl.LightningModule):
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
         MSE = th.mean(th.stack(MSE_list))
-        print("mse", MSE)
-        print("L_0", th.mean(L_0, dim=0))
-        # print("L_intermediate_list", len(L_intermediate_list), L_intermediate_list[0].shape)
-        print("L_intermediate", L_intermediate)
-        print("L_T", th.mean(L_T, dim=0))
 
         return {
             "MSE": MSE,  # TODO

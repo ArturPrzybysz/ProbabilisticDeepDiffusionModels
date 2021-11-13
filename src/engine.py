@@ -339,7 +339,7 @@ class Engine(pl.LightningModule):
         t = t_step * torch.ones(x_t.shape[0], device=self.device)
         _, x_t, sigma = self.model_mean_std(x_t, t, t_step)
         if not mean_only:
-            if t > 1:
+            if t_step > 1:
                 z = torch.randn(
                     x_t.shape, generator=generator, device=self.device, dtype=x_t.dtype
                 )

@@ -308,7 +308,7 @@ class Engine(pl.LightningModule):
     def model_mean_std(self, x_t, t, t_step):
         predicted_noise = self.model(x_t, t)
         predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
-        predicted_std = self.get_sigma(t - 1).to(self.device)  # TODO: Check indexing xD
+        predicted_std = self.get_sigma(t_step - 1).to(self.device)  # TODO: Check indexing xD
         return predicted_noise, predicted_mean, predicted_std
 
     def get_sigma(self, t):

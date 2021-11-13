@@ -49,7 +49,7 @@ def run_training(cfg: DictConfig, model_path=None):
         default_root_dir="training/logs",
         gpus=gpus,
         # limit_train_batches=10,
-        limit_test_batches=1,
+        # limit_test_batches=1,
         # **cfg["trainer"],
     )
 
@@ -71,11 +71,3 @@ if __name__ == "__main__":
         print("Caught exception")
         print(e)
         traceback.print_exc(e)
-
-"""
-@hydra.main(config_path="../config", config_name="eval")
-def run_eval(cfg: DictConfig):
-
-
-if __name__ == '__main__':
-    run_eval()"""

@@ -211,7 +211,7 @@ class Engine(pl.LightningModule):
         )
 
     def get_loss(
-            self, predicted_noise, target_noise, t, weights=None, update_loss_log=True
+            self, predicted_noise, target_noise,  x, x_t, t, weights=None, update_loss_log=True
     ):
         loss = mean_flat(torch.square(target_noise - predicted_noise))
         if update_loss_log:
@@ -234,7 +234,7 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
         loss = self.get_loss(
-            predicted_noise, noise, weights=weights, t=t, update_loss_log=True
+            predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=True
         )
 
         total_norm = self.compute_grad_norm(self.model.parameters())
@@ -263,8 +263,9 @@ class Engine(pl.LightningModule):
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
         predicted_noise = self.model(x_t, t)
+
         loss = self.get_loss(
-            predicted_noise, noise, weights=weights, t=t, update_loss_log=False
+            predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 

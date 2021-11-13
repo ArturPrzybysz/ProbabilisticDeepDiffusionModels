@@ -365,6 +365,11 @@ class Engine(pl.LightningModule):
         self.log("test_L_T", nll["L_T"])
         self.log("test_nll", nll["nll"])
         self.log("test_mse", nll["MSE"])
+        self.log("test_mse_1", nll["MSE_1"])
+        self.log("test_mse_2", nll["MSE_2"])
+        self.log("test_mse_3", nll["MSE_3"])
+        self.log("test_mse_4", nll["MSE_4"])
+        self.log("test_mse_5", nll["MSE_5"])
         self.log("test_mse_means", nll["MSE_means"])
 
     def calculate_likelihood(self, x):
@@ -376,11 +381,17 @@ class Engine(pl.LightningModule):
         L_T = self._calculate_L_T(x)
         L_intermediate = th.sum(th.stack(L_intermediate_list), dim=0)
         print('L_intermediate', th.mean(th.stack(L_intermediate_list), dim=1))
-        MSE = th.mean(th.stack(MSE_list))
+        MSE_stack = th.stack(MSE_list)
+        MSE = th.mean(MSE_stack)
         MSE_means = th.mean(th.stack(MSE_means_list))
 
         return {
             "MSE": MSE,  # TODO
+            "MSE_1": th.mean(MSE_stack[:200]),  # TODO
+            "MSE_2": th.mean(MSE_stack[200:400]),  # TODO
+            "MSE_3": th.mean(MSE_stack[400:600]),  # TODO
+            "MSE_4": th.mean(MSE_stack[600:800]),  # TODO
+            "MSE_5": th.mean(MSE_stack[800:]),  # TODO
             "MSE_means": MSE_means,
             "MSE_list": MSE_list,  # TODO
             "L_0": th.mean(L_0, dim=0),

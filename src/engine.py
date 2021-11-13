@@ -442,7 +442,7 @@ class Engine(pl.LightningModule):
         x_t = self.get_q_t(x, noise, t)
 
         predicted_noise, predicted_mean, predicted_std = self.model_mean_std(x_t, t, t_step)
-        predicted_logscales = th.log(predicted_std)
+        predicted_logscales = th.log(predicted_std) * th.ones_like(x)
 
         decoder_nll = -discretized_gaussian_log_likelihood(x, predicted_mean, predicted_logscales)
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)

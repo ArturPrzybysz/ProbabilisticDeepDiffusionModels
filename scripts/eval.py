@@ -50,7 +50,7 @@ def run_training(cfg: DictConfig, model_path=None):
         gpus=gpus,
         # limit_train_batches=10,
         # limit_test_batches=1,
-        # **cfg["trainer"],
+        **cfg["trainer"],
     )
 
     try:

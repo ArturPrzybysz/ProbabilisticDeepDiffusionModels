@@ -3,7 +3,8 @@ hydra:
   run:
     # Output directory for normal runs
     dir: ./
-trainer: {}
+trainer:
+  limit_test_batches: null
 run_id: g9rz03aa
 defaults:
   - model: unet

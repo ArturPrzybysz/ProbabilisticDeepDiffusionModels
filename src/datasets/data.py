@@ -37,6 +37,7 @@ def get_dataloader(
     pin_memory=True,
     transformation_kwargs=None,
     num_samples_per_epoch=None,
+    shuffle=None
 ):
     if transformation_kwargs is None:
         transformation_kwargs = {}
@@ -53,13 +54,15 @@ def get_dataloader(
         else:
             dataset = dataset(dir, train=train, download=download, transform=transform)
 
+    if shuffle is None:
+        shuffle = train
+
     if num_samples_per_epoch is not None:
         shuffle = False
         sampler = RandomSampler(
             dataset, num_samples=num_samples_per_epoch, replacement=True
         )
     else:
-        shuffle = train
         sampler = None
 
     return DataLoader(

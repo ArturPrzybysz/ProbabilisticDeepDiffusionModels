@@ -292,7 +292,8 @@ class Engine(pl.LightningModule):
         )
 
         if self.ema is not None:
-            predicted_noise = self.model(x_t, t)
+            with self.ema_on():
+                predicted_noise = self.model(x_t, t)
             loss_ema = self.get_loss(
                 predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
             )

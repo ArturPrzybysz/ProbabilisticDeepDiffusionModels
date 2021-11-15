@@ -14,13 +14,19 @@ from src.engine import Engine
 from src.visualization_hooks import VisualizationCallback
 from src.wandb_util import download_file
 
-wandb.init(project="diffusion", entity="ddpm", dir="/scratch/s193223/wandb/")
 
+def init_wandb(cfg):
+    api = wandb.Api()
+    wandb.init(project="diffusion", entity="ddpm", tags=["sample", cfg["run_id"]])
+    run = api.run(f"ddpm/diffusion/{cfg['run_id']}")
+    run_name = "SAMPLE_" + run.name + "-" + wandb.run.name.split("-")[-1]
+    wandb.run.name = run_name
+    wandb.run.save()
 
 @hydra.main(config_path="../config", config_name="sample")
 def sample(cfg: DictConfig):
-
     print(OmegaConf.to_yaml(cfg))
+    init_wandb(cfg)
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     with open(cfg_file, "w") as fh:

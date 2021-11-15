@@ -71,8 +71,6 @@ class Engine(pl.LightningModule):
         self.save_hyperparameters()  # ??
 
         self.clip_while_generating = clip_while_generating
-        if clip_while_generating:
-            print(f"WARNING: This feature seems to be buggy atm (clip_while_generating=True)")
 
         # create the model here
         self.model = get_model(resolution, dict(model_config))
@@ -354,7 +352,7 @@ class Engine(pl.LightningModule):
 
     def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
         if clip:
-            return self.xstart_from_epsilon(x_t, t, epsilon, clip=True)
+            return self.model_mean_through_start(x_t, t, epsilon, clip=True)
         else:
             denoising_coef = self.denoising_coef[t-1].view((-1, 1, 1, 1)).to(self.device)
             alphas_sqrt = self.alphas_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device)

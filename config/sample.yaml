@@ -3,5 +3,13 @@ hydra:
   run:
     # Output directory for normal runs
     dir: ./
-num_samples: 4
-black_white: true
+use_train: false
+clip_while_generating: false
+regular_viz: true
+detailed_viz: false
+use_ema: true
+n_images: 4
+n_random: 4
+n_interpolation_steps: 10
+n_interpolation_pairs: 4
+num_vis_steps: null

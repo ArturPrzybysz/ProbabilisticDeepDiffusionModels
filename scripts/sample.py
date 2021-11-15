@@ -17,7 +17,10 @@ from src.wandb_util import download_file
 
 def init_wandb(cfg):
     api = wandb.Api()
-    wandb.init(project="diffusion", entity="ddpm", tags=["sample", cfg["run_id"]])
+    tags = ["sample", cfg["run_id"]]
+    if cfg["clip_while_generating"]:
+        tags.append("clip")
+    wandb.init(project="diffusion", entity="ddpm", tags=tags)
     run = api.run(f"ddpm/diffusion/{cfg['run_id']}")
     run_name = "SAMPLE_" + run.name + "-" + wandb.run.name.split("-")[-1]
     wandb.run.name = run_name

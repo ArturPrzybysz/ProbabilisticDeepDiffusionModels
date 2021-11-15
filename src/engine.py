@@ -72,7 +72,7 @@ class Engine(pl.LightningModule):
 
         self.clip_while_generating = clip_while_generating
         if clip_while_generating:
-            raise NotImplementedError("This feature seems to be buggy atm")
+            print(f"WARNING: This feature seems to be buggy atm (clip_while_generating=True)")
 
         # create the model here
         self.model = get_model(resolution, dict(model_config))

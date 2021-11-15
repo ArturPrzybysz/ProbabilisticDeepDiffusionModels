@@ -13,3 +13,4 @@ n_random: 4
 n_interpolation_steps: 10
 n_interpolation_pairs: 4
 num_vis_steps: null
+run_id: g9rz03aa

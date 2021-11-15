@@ -61,7 +61,7 @@ class Engine(pl.LightningModule):
             mode="linear",
             sigma_mode="beta",
             resolution=32,
-            clip_while_generating=True,
+            clip_while_generating=False,
             sampling="uniform",
             ema=None,
             scheduler_name=None,
@@ -71,6 +71,8 @@ class Engine(pl.LightningModule):
         self.save_hyperparameters()  # ??
 
         self.clip_while_generating = clip_while_generating
+        if clip_while_generating:
+            raise NotImplementedError("This feature seems to be buggy atm")
 
         # create the model here
         self.model = get_model(resolution, dict(model_config))

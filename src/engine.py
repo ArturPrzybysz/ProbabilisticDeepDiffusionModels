@@ -103,8 +103,8 @@ class Engine(pl.LightningModule):
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
 
 
-        self.alphas_hat_prev = torch.from_numpy(np.append(1.0, self.alphas_hat[:-1].numpy()))
-        self.alphas_hat_next = torch.from_numpy(np.append(self.alphas_hat[1:].numpy(), 0.0))
+        self.alphas_hat_prev = torch.Tensor(np.append(1.0, self.alphas_hat[:-1].numpy()))
+        self.alphas_hat_next = torch.Tensor(np.append(self.alphas_hat[1:].numpy(), 0.0))
         self.posterior_variance = (
                 self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )

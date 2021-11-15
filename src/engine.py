@@ -153,6 +153,7 @@ class Engine(pl.LightningModule):
                 yield
             finally:
                 self.model = self.original_model
+                self.original_model = None
 
     def on_epoch_end(self) -> None:
         if isinstance(self.sampler, ImportanceSampler):

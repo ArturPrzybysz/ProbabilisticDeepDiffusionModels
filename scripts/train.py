@@ -160,7 +160,7 @@ def run_training(cfg: DictConfig):
         traceback.print_exc(e)
         # raise e
 
-    checkpoint_path = download_file(wandb.run.dir, "model.ckpt")
+    checkpoint_path = os.path.join(wandb.run.dir, "model.ckpt")
     engine = Engine.load_from_checkpoint(checkpoint_path)
     trainer.test(engine, test_dataloaders=dataloader_val)
 

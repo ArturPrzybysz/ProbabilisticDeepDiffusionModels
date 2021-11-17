@@ -5,6 +5,10 @@ import torch as th
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
+
+CONFIG_PATH = Path("../config")
+
 
 def mean_flat(tensor):
     """
@@ -23,6 +27,7 @@ def save_img(x, path):
         # plt.imshow(x)  # rows, columns, channels
         plt.imshow(x)  # rows, columns, channels
         plt.savefig(path, bbox_inches="tight", pad_inches=0)
+    plt.clf()
 
 
 def model_output_to_image_numpy(x):

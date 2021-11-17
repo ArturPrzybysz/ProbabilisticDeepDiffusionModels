@@ -1,12 +1,14 @@
 import os
+from pathlib import Path
 
 import torch
 import wandb
 from omegaconf import OmegaConf
+from pytorch_fid import fid_score
 
 from src.datasets.data import get_dataloader
 from src.engine import Engine
-from src.modules.fid_score import compute_FID_score
+from src.modules.fid_score import compute_FID_score, save_dataloader_to_files
 from src.wandb_util import download_file
 import pytorch_lightning as pl
 
@@ -26,9 +28,22 @@ def main():
     init_wandb(run_id)
     logger = pl.loggers.WandbLogger()
 
-    gpus = 1 if torch.cuda.is_available() else 0
     engine = Engine.load_from_checkpoint(checkpoint_path)
     logger.watch(engine)
+
+    ################
+    cfg_path = download_file(run_id, "experiment_config.yaml")
+    original_cfg = OmegaConf.load(cfg_path)
+
+    dataloader = get_dataloader(
+        train=False, pin_memory=True, download=True, **original_cfg["data"]
+    )
+    p1 = Path("p1")
+    p2 = Path("p2")
+    save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=2048)
+    save_dataloader_to_files(dataloader, p2, lower_limit=2048, limit=4096)
+
+    ################
 
     print("engine.device", engine.device)
     if torch.cuda.is_available():
@@ -46,8 +61,13 @@ def main():
     )
 
     # dataset_path = "todo"
-    FID_score = compute_FID_score(engine, dataloader)
-    print("FID_score", FID_score)
+    # FID_score = compute_FID_score(engine, dataloader)
+    # print("FID_score", FID_score)
+
+    FID = fid_score.calculate_fid_given_paths((str(p1), str(p2)),
+                                              batch_size=100,
+                                              device=engine.device,
+                                              dims=2048)
 
 
 if __name__ == '__main__':

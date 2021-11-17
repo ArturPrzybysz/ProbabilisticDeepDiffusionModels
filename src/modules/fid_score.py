@@ -23,7 +23,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
         save_img(img, target_path / f"{i}.png")
 
 
-def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=4096):
+def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, limit=4096):
     print("save_dataloader_to_files")
     count = 0
     import time
@@ -31,6 +31,7 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=4096):
     for batch in dataloader:
         X = batch[0]
         for i in tqdm(range(X.shape[0])):
+            if i < lower_limit: continue
             # img = X[i, :, :, :].detach().cpu().numpy()
             img = unnormalize(
                 X[i].detach().cpu().numpy(),

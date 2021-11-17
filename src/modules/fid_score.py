@@ -12,6 +12,7 @@ from pytorch_fid import fid_score
 
 
 def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_size=128, image_count=2048):
+    print("sample_from_model")
     images = engine.generate_images(n=image_count, minibatch=minibatch_size, mean_only=mean_only)
 
     for i in range(images.shape[0]):
@@ -23,6 +24,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
 
 
 def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=4096):
+    print("save_dataloader_to_files")
     count = 0
     import time
     t1 = time.time()
@@ -43,6 +45,7 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=4096):
 
 
 def compute_FID_score(engine: Engine, dataloader, fid_batch_size=50):
+    print("compute_FID_score")
     with TemporaryDirectory() as samples_dir, TemporaryDirectory() as dataset_dir:
         target_path = Path(samples_dir)
         dataset_path = Path(samples_dir)

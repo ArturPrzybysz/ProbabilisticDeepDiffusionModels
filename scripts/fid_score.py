@@ -22,14 +22,14 @@ def init_wandb(run_id):
 def main():
     run_id = "1uk0nbqr"
     checkpoint_path = download_file(run_id, "model.ckpt")
-    engine = Engine.load_from_checkpoint(checkpoint_path)
     init_wandb(run_id)
+    logger = pl.loggers.WandbLogger()
+
+    engine = Engine.load_from_checkpoint(checkpoint_path)
+    logger.watch(engine)
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     wandb.save(cfg_file)
-
-    logger = pl.loggers.WandbLogger()
-    logger.watch(engine)
 
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)

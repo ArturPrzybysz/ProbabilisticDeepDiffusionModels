@@ -49,7 +49,7 @@ def compute_FID_score(engine: Engine, dataloader, fid_batch_size=50):
     print("compute_FID_score")
     with TemporaryDirectory() as samples_dir, TemporaryDirectory() as dataset_dir:
         target_path = Path(samples_dir)
-        dataset_path = Path(samples_dir)
+        dataset_path = Path(dataset_dir)
 
         sample_from_model(engine=engine, target_path=target_path, mean_only=True)
         save_dataloader_to_files(dataloader, dataset_path)

@@ -1,11 +1,8 @@
 import os
-import tempfile
-from pathlib import Path
 
 import torch
 import wandb
 from omegaconf import OmegaConf
-from pytorch_fid import fid_score
 
 from src.datasets.data import get_dataloader
 from src.engine import Engine
@@ -32,45 +29,23 @@ def main():
     engine = Engine.load_from_checkpoint(checkpoint_path)
     logger.watch(engine)
 
-    ################
+    print("engine.device", engine.device)
+    if torch.cuda.is_available():
+        engine.cuda()
+    print("engine.device", engine.device)
+
+    cfg_file = os.path.join(wandb.run.dir, "config.yaml")
+    wandb.save(cfg_file)
+
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
-
+    print(original_cfg)
     dataloader = get_dataloader(
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )
-    with tempfile.TemporaryDirectory() as _p1, tempfile.TemporaryDirectory() as _p2:
-        p1 = Path(_p1)
-        p2 = Path(_p2)
-        save_dataloader_to_files(dataloader, p1, limit=100)
-        save_dataloader_to_files(dataloader, p2, limit=100)
 
-        ################
-
-        print("engine.device", engine.device)
-        if torch.cuda.is_available():
-            engine.cuda()
-        print("engine.device", engine.device)
-
-        cfg_file = os.path.join(wandb.run.dir, "config.yaml")
-        wandb.save(cfg_file)
-
-        cfg_path = download_file(run_id, "experiment_config.yaml")
-        original_cfg = OmegaConf.load(cfg_path)
-        print(original_cfg)
-        dataloader = get_dataloader(
-            train=False, pin_memory=True, download=True, **original_cfg["data"]
-        )
-
-        # dataset_path = "todo"
-        # FID_score = compute_FID_score(engine, dataloader)
-        # print("FID_score", FID_score)
-
-        FID = fid_score.calculate_fid_given_paths((str(_p1), str(_p2)),
-                                                  batch_size=50,
-                                                  device=engine.device,
-                                                  dims=2048)
-        print("FID", FID)
+    FID_score = compute_FID_score(engine, dataloader)
+    print("FID_score", FID_score)
 
 
 if __name__ == '__main__':

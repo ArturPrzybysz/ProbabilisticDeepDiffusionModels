@@ -27,7 +27,7 @@ def main():
     logger = pl.loggers.WandbLogger()
 
     gpus = 1 if torch.cuda.is_available() else 0
-    engine = Engine.load_from_checkpoint(checkpoint_path, map_location="", )
+    engine = Engine.load_from_checkpoint(checkpoint_path)
     logger.watch(engine)
 
     print("engine.device", engine.device)

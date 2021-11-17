@@ -15,7 +15,7 @@ def main():
     original_cfg = OmegaConf.load(cfg_path)
     print(original_cfg)
     dataloader = get_dataloader(
-        train=False, pin_memory=True,**original_cfg["data"]
+        train=False, pin_memory=True, download=True, **original_cfg["data"]
     )
 
     # dataset_path = "todo"

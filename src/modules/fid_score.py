@@ -20,6 +20,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
         img = unnormalize(
             images[i], normalize=None, clip=False, channel_dim=0
         )
+        print(img)
         save_img(img, target_path / f"{i}.png")
 
 
@@ -48,8 +49,8 @@ def compute_FID_score(engine: Engine, dataloader, fid_batch_size=50):
         target_path = Path(samples_dir)
         dataset_path = Path(samples_dir)
 
-        save_dataloader_to_files(dataloader, dataset_path)
         sample_from_model(engine=engine, target_path=target_path, mean_only=True)
+        save_dataloader_to_files(dataloader, dataset_path)
 
         FID = fid_score.calculate_fid_given_paths((str(dataset_path), str(samples_dir)),
                                                   batch_size=fid_batch_size,

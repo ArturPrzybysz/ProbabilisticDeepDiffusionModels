@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 
 import torch
@@ -38,36 +39,36 @@ def main():
     dataloader = get_dataloader(
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )
-    p1 = Path("p1")
-    p2 = Path("p2")
-    save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=2048)
-    save_dataloader_to_files(dataloader, p2, lower_limit=2048, limit=4096)
+    with tempfile.TemporaryDirectory() as p1, tempfile.TemporaryDirectory() as p2:
+        save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=2048)
+        save_dataloader_to_files(dataloader, p2, lower_limit=2048, limit=4096)
 
-    ################
+        ################
 
-    print("engine.device", engine.device)
-    if torch.cuda.is_available():
-        engine.cuda()
-    print("engine.device", engine.device)
+        print("engine.device", engine.device)
+        if torch.cuda.is_available():
+            engine.cuda()
+        print("engine.device", engine.device)
 
-    cfg_file = os.path.join(wandb.run.dir, "config.yaml")
-    wandb.save(cfg_file)
+        cfg_file = os.path.join(wandb.run.dir, "config.yaml")
+        wandb.save(cfg_file)
 
-    cfg_path = download_file(run_id, "experiment_config.yaml")
-    original_cfg = OmegaConf.load(cfg_path)
-    print(original_cfg)
-    dataloader = get_dataloader(
-        train=False, pin_memory=True, download=True, **original_cfg["data"]
-    )
+        cfg_path = download_file(run_id, "experiment_config.yaml")
+        original_cfg = OmegaConf.load(cfg_path)
+        print(original_cfg)
+        dataloader = get_dataloader(
+            train=False, pin_memory=True, download=True, **original_cfg["data"]
+        )
 
-    # dataset_path = "todo"
-    # FID_score = compute_FID_score(engine, dataloader)
-    # print("FID_score", FID_score)
+        # dataset_path = "todo"
+        # FID_score = compute_FID_score(engine, dataloader)
+        # print("FID_score", FID_score)
 
-    FID = fid_score.calculate_fid_given_paths((str(p1), str(p2)),
-                                              batch_size=100,
-                                              device=engine.device,
-                                              dims=2048)
+        FID = fid_score.calculate_fid_given_paths((str(p1), str(p2)),
+                                                  batch_size=100,
+                                                  device=engine.device,
+                                                  dims=2048)
+        print("FID", FID)
 
 
 if __name__ == '__main__':

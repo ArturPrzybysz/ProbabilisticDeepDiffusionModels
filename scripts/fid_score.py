@@ -22,7 +22,7 @@ def init_wandb(run_id):
 
 
 def main():
-    run_id = sys.argv[1:]  # "1uk0nbqr"
+    run_id = sys.argv[1:][0]  # "1uk0nbqr"
     print("run_id", run_id)
     checkpoint_path = download_file(run_id, "model.ckpt")
     init_wandb(run_id)

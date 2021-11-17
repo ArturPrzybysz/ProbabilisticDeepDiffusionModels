@@ -42,8 +42,8 @@ def main():
     with tempfile.TemporaryDirectory() as _p1, tempfile.TemporaryDirectory() as _p2:
         p1 = Path(_p1)
         p2 = Path(_p2)
-        save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=2048)
-        save_dataloader_to_files(dataloader, p2, lower_limit=2048, limit=4096)
+        save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=100)
+        save_dataloader_to_files(dataloader, p2, lower_limit=100, limit=200)
 
         ################
 
@@ -67,7 +67,7 @@ def main():
         # print("FID_score", FID_score)
 
         FID = fid_score.calculate_fid_given_paths((str(_p1), str(_p2)),
-                                                  batch_size=100,
+                                                  batch_size=64,
                                                   device=engine.device,
                                                   dims=2048)
         print("FID", FID)

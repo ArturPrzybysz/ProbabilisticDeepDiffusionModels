@@ -67,7 +67,7 @@ def main():
         # print("FID_score", FID_score)
 
         FID = fid_score.calculate_fid_given_paths((str(_p1), str(_p2)),
-                                                  batch_size=64,
+                                                  batch_size=1,
                                                   device=engine.device,
                                                   dims=2048)
         print("FID", FID)

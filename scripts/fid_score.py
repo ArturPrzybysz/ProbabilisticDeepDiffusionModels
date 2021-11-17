@@ -28,6 +28,8 @@ def main():
     engine = Engine.load_from_checkpoint(checkpoint_path)
     logger.watch(engine)
 
+    print("engine.device", engine.device)
+
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     wandb.save(cfg_file)
 

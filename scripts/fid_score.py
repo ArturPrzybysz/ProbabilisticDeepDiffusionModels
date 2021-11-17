@@ -1,5 +1,6 @@
 import os
 
+import torch
 import wandb
 from omegaconf import OmegaConf
 
@@ -25,9 +26,13 @@ def main():
     init_wandb(run_id)
     logger = pl.loggers.WandbLogger()
 
-    engine = Engine.load_from_checkpoint(checkpoint_path)
+    gpus = 1 if torch.cuda.is_available() else 0
+    engine = Engine.load_from_checkpoint(checkpoint_path, map_location="", )
     logger.watch(engine)
 
+    print("engine.device", engine.device)
+    if torch.cuda.is_available():
+        engine.cuda()
     print("engine.device", engine.device)
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")

@@ -41,7 +41,7 @@ def main():
     )
     with tempfile.TemporaryDirectory() as _p1, tempfile.TemporaryDirectory() as _p2:
         p1 = Path(_p1)
-        p1 = Path(_p2)
+        p2 = Path(_p2)
         save_dataloader_to_files(dataloader, p1, lower_limit=0, limit=2048)
         save_dataloader_to_files(dataloader, p2, lower_limit=2048, limit=4096)
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import wandb
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -21,6 +22,8 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
         )
         print(img)
         save_img(img, target_path / f"{i}.png")
+        images = wandb.Image(img, caption=f"{i}.png")
+        wandb.log({"images": images})
 
 
 def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, limit=4096):
@@ -49,12 +52,12 @@ def compute_FID_score(engine: Engine, dataloader, dir_to_save1=None, dir_to_save
     print("compute_FID_score")
     with TemporaryDirectory() as samples_dir, TemporaryDirectory() as dataset_dir:
         if dir_to_save1:
-            target_path = Path(dir_to_save1)
+            target_path = dir_to_save1
         else:
             target_path = Path(samples_dir)
 
         if dir_to_save2:
-            dataset_path = Path(dir_to_save2)
+            dataset_path = dir_to_save2
         else:
             dataset_path = Path(dataset_dir)
 

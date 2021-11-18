@@ -1,5 +1,6 @@
 import sys
 import os
+from pathlib import Path
 
 import torch
 import wandb
@@ -22,7 +23,12 @@ def init_wandb(run_id):
 
 
 def main():
-    run_id = sys.argv[1:][0]  # "1uk0nbqr"
+    wandb.save("*.png")
+    wandb.save("images/*.png")
+    wandb.save("images/*/*.png")
+
+    run_id = sys.argv[1:][0]
+
     print("run_id", run_id)
     checkpoint_path = download_file(run_id, "model.ckpt")
     init_wandb(run_id)
@@ -46,6 +52,10 @@ def main():
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )
 
+    path1 = Path("images/sample")
+    path2 = Path("images/dataset")
+    path1.mkdir()
+    path2.mkdir()
     FID_score = compute_FID_score(engine, dataloader)
     print("FID_score", FID_score)
 

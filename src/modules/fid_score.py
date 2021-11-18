@@ -45,11 +45,18 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, 
     print("time", time.time() - t1, count)
 
 
-def compute_FID_score(engine: Engine, dataloader, fid_batch_size=50):
+def compute_FID_score(engine: Engine, dataloader, dir_to_save1=None, dir_to_save2=None, fid_batch_size=50):
     print("compute_FID_score")
     with TemporaryDirectory() as samples_dir, TemporaryDirectory() as dataset_dir:
-        target_path = Path(samples_dir)
-        dataset_path = Path(dataset_dir)
+        if dir_to_save1:
+            target_path = Path(dir_to_save1)
+        else:
+            target_path = Path(samples_dir)
+
+        if dir_to_save2:
+            dataset_path = Path(dir_to_save2)
+        else:
+            dataset_path = Path(dataset_dir)
 
         sample_from_model(engine=engine, target_path=target_path, mean_only=True)
         save_dataloader_to_files(dataloader, dataset_path)

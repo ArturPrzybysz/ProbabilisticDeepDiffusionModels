@@ -20,13 +20,13 @@ def init_wandb(run_id):
     run_name = "FID_" + run.name + "-" + wandb.run.name.split("-")[-1]
     wandb.run.name = run_name
     wandb.run.save()
-
-
-def main():
     wandb.save("*.png")
     wandb.save("images/*.png")
     wandb.save("images/*/*.png")
 
+
+
+def main():
     run_id = sys.argv[1:][0]
 
     print("run_id", run_id)

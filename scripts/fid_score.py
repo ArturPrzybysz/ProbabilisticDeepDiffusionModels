@@ -56,7 +56,7 @@ def main():
     path2 = Path("images/dataset")
     path1.mkdir(exist_ok=True, parents=True)
     path2.mkdir(exist_ok=True, parents=True)
-    FID_score = compute_FID_score(engine, dataloader)
+    FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
     print("FID_score", FID_score)
 
 

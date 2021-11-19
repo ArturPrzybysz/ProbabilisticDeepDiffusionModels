@@ -88,7 +88,7 @@ class Engine(pl.LightningModule):
             max_beta=0.999,
             sigma_mode="beta",
             resolution=32,
-            clip_while_generating=True,
+            clip_while_generating=False,
             sampling="uniform",
             ema=None,
             scheduler_name=None,
@@ -129,11 +129,26 @@ class Engine(pl.LightningModule):
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
 
-        self.alphas_hat_prev = np.append(1.0, self.alphas_hat[:-1])
-        self.alphas_hat_next = np.append(self.alphas_hat[1:], 0.0)
+
+        self.alphas_hat_prev = torch.Tensor(np.append(1.0, self.alphas_hat[:-1].numpy()))
+        self.alphas_hat_next = torch.Tensor(np.append(self.alphas_hat[1:].numpy(), 0.0))
         self.posterior_variance = (
                 self.betas * (1.0 - self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
+        # TODO: what's that?
+        self.sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / self.alphas_hat)
+        self.sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / self.alphas_hat - 1)
+
+        self.posterior_mean_coef1 = (
+            self.betas * torch.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+        )
+        self.posterior_mean_coef2 = (
+            (1.0 - self.alphas_hat_prev)
+            * self.alphas_sqrt
+            / (1.0 - self.alphas_hat)
+        )
+
+        self.denoising_coef = (self.betas / self.one_min_alphas_hat_sqrt)
 
         self.loss_per_t = StepwiseLog(diffusion_steps, 10)
         self.loss_per_t_epoch = StepwiseLog(diffusion_steps)
@@ -165,6 +180,7 @@ class Engine(pl.LightningModule):
                 yield
             finally:
                 self.model = self.original_model
+                self.original_model = None
 
     def on_epoch_end(self) -> None:
         if isinstance(self.sampler, ImportanceSampler):
@@ -304,7 +320,8 @@ class Engine(pl.LightningModule):
         )
 
         if self.ema is not None:
-            predicted_noise = self.model(x_t, t)
+            with self.ema_on():
+                predicted_noise = self.model(x_t, t)
             loss_ema = self.get_loss(
                 predicted_noise, noise, x, x_t, weights=weights, t=t, update_loss_log=False
             )
@@ -332,9 +349,9 @@ class Engine(pl.LightningModule):
         )
         return total_norm
 
-    def model_mean_std(self, x_t, t, t_step):
+    def model_mean_std(self, x_t, t, t_step, clip=False):
         predicted_noise = self.model(x_t, t)
-        predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise)
+        predicted_mean = self.model_mean_from_epsilon(x_t, t_step, predicted_noise, clip=clip)
         predicted_std = self.get_sigma(t_step - 1).to(self.device)  # TODO: Check indexing xD
         return predicted_noise, predicted_mean, predicted_std
 
@@ -347,34 +364,42 @@ class Engine(pl.LightningModule):
         else:
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
-    def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
-        epsilon *= (self.betas[t - 1] / self.one_min_alphas_hat_sqrt[t - 1]).to(
-            self.device
-        )
 
-        x = x_t - epsilon
-        x /= self.alphas[t - 1].to(self.device)
-
+    def xstart_from_epsilon(self, x_t, t, epsilon, clip=False):
+        x = self.sqrt_recip_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * x_t \
+            - self.sqrt_recipm1_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * epsilon
         if clip:
             x = x.clamp(-1, 1)
-
         return x
+
+    def model_mean_through_start(self, x_t, t, epsilon, clip=False):
+        xstart = self.xstart_from_epsilon(x_t, t, epsilon, clip=clip)
+        model_mean, _ = self.q_posterior(t, xstart, x_t)
+        return model_mean
+
+    def model_mean_from_epsilon(self, x_t, t, epsilon, clip=False):
+        if clip:
+            return self.model_mean_through_start(x_t, t, epsilon, clip=True)
+        else:
+            denoising_coef = self.denoising_coef[t-1].view((-1, 1, 1, 1)).to(self.device)
+            alphas_sqrt = self.alphas_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device)
+            return (x_t - epsilon * denoising_coef) / alphas_sqrt
+
 
     # ------------ Sampling and generation utils ----------
 
     def denoising_step(self, x_t, t_step, mean_only=False, generator=None):
         t = t_step * torch.ones(x_t.shape[0], device=self.device)
-        _, x_t, sigma = self.model_mean_std(x_t, t, t_step)
+        _, x_t, sigma = self.model_mean_std(x_t, t, t_step, clip=self.clip_while_generating)
         if not mean_only:
-            if t > 1:
+            if t_step > 1:
                 z = torch.randn(
                     x_t.shape, generator=generator, device=self.device, dtype=x_t.dtype
                 )
             else:
                 z = 0
             x_t -= sigma * z
-        if self.clip_while_generating:
-            x_t = x_t.clamp(-1, 1)
+
         return x_t
 
     def sample_from_step(self, x_t, t_start, mean_only=False, generator=None):
@@ -458,21 +483,15 @@ class Engine(pl.LightningModule):
         """
         Returns mean and variance of q(x_t-1 | x_t, x_0) following eq. (6) and (7)
         """
-        alpha_hat_sqrt_t_min_1 = self.alphas_hat_sqrt[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t_min1 = self.alphas_hat[t - 2].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_sqrt_t = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        alpha_hat_t = self.alphas_hat[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
-        beta_t = self.betas[t - 1].view((-1, 1, 1, 1)).to(self.device)  # TODO: check index xD
 
         mean_t = (
-                x0 * alpha_hat_sqrt_t_min_1 * beta_t / (1 - alpha_hat_t)
+                x0 * self.posterior_mean_coef1[t - 1].view((-1, 1, 1, 1)).to(self.device)
                 +
-                x_t * alpha_sqrt_t * (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
+                x_t * self.posterior_mean_coef2[t - 1].view((-1, 1, 1, 1)).to(self.device)
         )
 
-        var_t = beta_t * (
-                (1 - alpha_hat_t_min1) / (1 - alpha_hat_t)
-        )
+        var_t = self.posterior_variance[t - 1].view((-1, 1, 1, 1)).to(self.device)
+
         return mean_t, var_t
 
     def _calculate_L_0(self, x):
@@ -490,18 +509,6 @@ class Engine(pl.LightningModule):
         decoder_nll = -discretized_gaussian_log_likelihood(x, predicted_mean, predicted_logscales)
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
         return decoder_nll
-
-    def q_mean_std(self, x, t):
-        """
-        TODO: explain
-        """
-        mean = x * self.alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
-        std = self.one_min_alphas_hat_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)  # eq. (4)
-        return mean, std
-
-    # def get_q_t(self, x, noise, t):
-    #     mean, std = self.q_mean_std(x, t)
-    #     return mean + noise * std
 
     # ------------ Image generation endpoints ----------
 

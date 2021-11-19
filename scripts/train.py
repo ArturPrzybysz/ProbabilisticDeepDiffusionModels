@@ -153,7 +153,6 @@ def run_training(cfg: DictConfig):
         trainer.fit(
             engine, train_dataloader=dataloader_train, val_dataloaders=dataloader_val
         )
-        trainer.test(engine, test_dataloaders=dataloader_val)
     except Exception as e:
         # for some reason errors get truncated here, so need to catch and raise again
         # probably hydra's fault
@@ -161,6 +160,10 @@ def run_training(cfg: DictConfig):
         print(e)
         traceback.print_exc(e)
         # raise e
+
+    checkpoint_path = os.path.join(wandb.run.dir, "model.ckpt")
+    engine = Engine.load_from_checkpoint(checkpoint_path)
+    trainer.test(engine, test_dataloaders=dataloader_val)
 
 
 if __name__ == "__main__":

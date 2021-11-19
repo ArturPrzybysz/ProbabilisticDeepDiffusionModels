@@ -6,6 +6,7 @@ hydra:
 trainer:
   limit_test_batches: null
 run_id: g9rz03aa
+use_train_data: true
 defaults:
   - model: unet
   - data: cifar10

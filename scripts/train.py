@@ -26,6 +26,7 @@ def init_wandb(cfg):
     tags.append("train")
     if cfg["cont_run"]:
         tags.append("cont")
+        tags.append(cfg["cont_run"])
     else:
         tags.append(f'BLCK_{cfg["model"]["num_res_blocks"]}')
         if cfg["scheduler"]["scheduler_name"]:

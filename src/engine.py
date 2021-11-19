@@ -200,7 +200,7 @@ class Engine(pl.LightningModule):
         self.loss_per_t_epoch.reset()
 
     def optimizer_step(self, *args, **kwargs):
-        self._log_grad_norm()
+        # self._log_grad_norm()
         super().optimizer_step(*args, **kwargs)
         if self.ema:
             # self.ema.to(self.device)

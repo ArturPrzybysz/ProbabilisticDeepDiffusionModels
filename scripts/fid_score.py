@@ -25,7 +25,6 @@ def init_wandb(run_id):
     wandb.save("images/*/*.png")
 
 
-
 def main():
     run_id = sys.argv[1:][0]
 
@@ -37,17 +36,16 @@ def main():
     engine = Engine.load_from_checkpoint(checkpoint_path)
     logger.watch(engine)
 
-    print("engine.device", engine.device)
     if torch.cuda.is_available():
         engine.cuda()
-    print("engine.device", engine.device)
+    print("engine.device =", engine.device)
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     wandb.save(cfg_file)
 
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
-    print(original_cfg)
+    print("original_cfg =", original_cfg)
     dataloader = get_dataloader(
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )

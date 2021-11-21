@@ -85,7 +85,7 @@ class Engine(pl.LightningModule):
         else:
             self.ema = None
 
-        print(self.model)
+        # print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution

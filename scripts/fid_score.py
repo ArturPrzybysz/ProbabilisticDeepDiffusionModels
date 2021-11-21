@@ -55,8 +55,25 @@ def main():
     path1.mkdir(exist_ok=True, parents=True)
     path2.mkdir(exist_ok=True, parents=True)
     FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
+    wandb.save()
     print("FID_score", FID_score)
 
+
+original_cfg = {'model': {'name': 'unet', 'in_channels': 3, 'model_channels': 128, 'num_res_blocks': 3,
+                          'attention_resolutions': [16, 8], 'dropout': 0.1, 'channel_mult': [1, 2, 2, 2],
+                          'conv_resample': True, 'dims': 2, 'num_classes': None, 'use_checkpoint': False,
+                          'num_heads': 4, 'num_heads_upsample': -1, 'use_scale_shift_norm': False},
+                'data': {'name': 'CIFAR10', 'batch_size': 64, 'num_workers': 4,
+                         'transformation_kwargs': {'normalize': 'oneone', 'flip': True}},
+                'visualization': {'run_every': 10, 'n_images': 2, 'n_random': 4, 'n_interpolation_steps': 5,
+                                  'n_interpolation_pairs': 2},
+                'engine': {'resolution': 32, 'optimizer_config': {'lr': 0.0002}, 'diffusion_steps': 4000,
+                           'beta_start': None, 'beta_end': None, 'clip_while_generating': False, 'sigma_mode': 'beta',
+                           'mode': 'cosine', 'ema': 0.999, 'sampling': 'importance'},
+                'scheduler': {'scheduler_name': None, 'scheduler_kwargs': {}},
+                'run_name': 'cifar_4000_cosine_ema999_importance',
+                'trainer': {'max_epochs': 4000, 'accumulate_grad_batches': 2, 'check_val_every_n_epoch': 2,
+                            'limit_test_batches': 20}, 'cont_run': None, 'patience': 30}
 
 if __name__ == '__main__':
     main()

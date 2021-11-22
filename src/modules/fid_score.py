@@ -23,7 +23,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
         print(img.shape)
         print(img)
         save_img(img, target_path / f"{i}.png")
-        images = wandb.Image(img, caption=f"{i}.png")
+        # images = wandb.Image(img, caption=f"{i}.png")
         wandb.log({"images": images})
 
 

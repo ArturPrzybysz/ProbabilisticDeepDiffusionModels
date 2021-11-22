@@ -18,7 +18,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
 
     for i in range(images.shape[0]):
         img = unnormalize(
-            images[i], normalize=None, clip=False, channel_dim=0
+            images[i], normalize=None, clip=True, channel_dim=0
         )
         print(img.shape)
         print(img)

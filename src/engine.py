@@ -371,7 +371,7 @@ class Engine(pl.LightningModule):
 
     def sample_from_step(self, x_t, t_start, mean_only=False, generator=None):
         for t in range(t_start, 0, -1):
-            print("t", t)
+            # print("t", t)
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 

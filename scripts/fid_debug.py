@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 
 from src.datasets.data import get_dataloader
 from src.engine import Engine
-from src.modules.fid_score import compute_FID_score, save_dataloader_to_files
+from src.modules.fid_score import compute_FID_score, save_dataloader_to_files, sample_from_model
 from src.wandb_util import download_file
 import pytorch_lightning as pl
 
@@ -46,17 +46,26 @@ def main():
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
     print("original_cfg =", original_cfg)
-    dataloader = get_dataloader(
-        train=False, pin_memory=True, download=True, **original_cfg["data"]
-    )
+    # dataloader = get_dataloader(
+    #     train=False, pin_memory=True, download=True, **original_cfg["data"]
+    # )
 
     path1 = Path("images/sample")
-    path2 = Path("images/dataset")
+    # path2 = Path("images/dataset")
     path1.mkdir(exist_ok=True, parents=True)
-    path2.mkdir(exist_ok=True, parents=True)
-    FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
+    # path2.mkdir(exist_ok=True, parents=True)
     wandb.save()
-    print("FID_score", FID_score)
+
+    sample_from_model(engine=engine, target_path=path1, mean_only=True, image_count=10, minibatch_size=10)
+
+    # FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
+
+    for p in path1.rglob("*.png"):
+        print(p)
+        wandb.save(p)
+    wandb.save()
+
+    # print("FID_score", FID_score)
 
 
 if __name__ == '__main__':

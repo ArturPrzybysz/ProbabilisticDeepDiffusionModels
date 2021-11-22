@@ -62,8 +62,7 @@ def main():
 
     for p in path1.rglob("*.png"):
         print(p)
-        wandb.save(p)
-    wandb.save()
+        # wandb.save(p)
     wandb.save("*.png")
     wandb.save("images/*.png")
     wandb.save("images/*/*.png")

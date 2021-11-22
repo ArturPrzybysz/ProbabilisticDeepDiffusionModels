@@ -64,6 +64,10 @@ def main():
         print(p)
         wandb.save(p)
     wandb.save()
+    wandb.save("*.png")
+    wandb.save("images/*.png")
+    wandb.save("images/*/*.png")
+
 
     # print("FID_score", FID_score)
 

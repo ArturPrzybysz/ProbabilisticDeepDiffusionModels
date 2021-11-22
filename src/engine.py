@@ -71,7 +71,7 @@ class Engine(pl.LightningModule):
         self.save_hyperparameters()  # ??
 
         self.clip_while_generating = clip_while_generating
-
+        print("self.clip_while_generating", self.clip_while_generating)
         # create the model here
         self.model = get_model(resolution, dict(model_config))
 
@@ -84,7 +84,7 @@ class Engine(pl.LightningModule):
             self.ema.set(self.model)
         else:
             self.ema = None
-
+        print("self.ema", self.ema)
         # print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps
@@ -371,6 +371,7 @@ class Engine(pl.LightningModule):
 
     def sample_from_step(self, x_t, t_start, mean_only=False, generator=None):
         for t in range(t_start, 0, -1):
+            print("t", t)
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 
@@ -528,6 +529,7 @@ class Engine(pl.LightningModule):
     @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None):
         self.eval()
+        print("generate_images", "n", n, "minibatch", minibatch, "mean_only", mean_only)
         generator = get_generator_if_specified(seed, device=self.device)
         images = []
 

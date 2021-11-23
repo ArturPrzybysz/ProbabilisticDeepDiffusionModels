@@ -26,7 +26,7 @@ def init_wandb(run_id):
 
 
 def main():
-    run_id = sys.argv[1:][0]
+    run_id = sys.argv[1]
 
     print("run_id", run_id)
     checkpoint_path = download_file(run_id, "model.ckpt")
@@ -34,6 +34,7 @@ def main():
     logger = pl.loggers.WandbLogger()
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
+    engine.clip_while_generating = True
     logger.watch(engine)
 
     if torch.cuda.is_available():

@@ -34,6 +34,8 @@ def main():
     logger = pl.loggers.WandbLogger()
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
+    engine.clip_while_generating = True
+
     logger.watch(engine)
 
     if torch.cuda.is_available():
@@ -66,7 +68,6 @@ def main():
     wandb.save("*.png")
     wandb.save("images/*.png")
     wandb.save("images/*/*.png")
-
 
     # print("FID_score", FID_score)
 

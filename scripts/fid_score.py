@@ -46,6 +46,9 @@ def main():
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
     print("original_cfg =", original_cfg)
+    print("""original_cfg["clip_while_generating"]""", original_cfg["clip_while_generating"])
+    original_cfg["clip_while_generating"] = True
+    print("""original_cfg["clip_while_generating"]""", original_cfg["clip_while_generating"])
     dataloader = get_dataloader(
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )

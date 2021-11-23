@@ -62,7 +62,7 @@ def compute_FID_score(engine: Engine, dataloader, dir_to_save1=None, dir_to_save
         else:
             dataset_path = Path(dataset_dir)
 
-        sample_from_model(engine=engine, target_path=target_path, mean_only=True)
+        sample_from_model(engine=engine, target_path=target_path, mean_only=False)
         save_dataloader_to_files(dataloader, dataset_path)
 
         FID = fid_score.calculate_fid_given_paths((str(dataset_path), str(samples_dir)),

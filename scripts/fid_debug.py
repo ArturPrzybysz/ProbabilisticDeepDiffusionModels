@@ -56,7 +56,7 @@ def main():
     # path2.mkdir(exist_ok=True, parents=True)
     wandb.save()
 
-    sample_from_model(engine=engine, target_path=path1, mean_only=True, image_count=10, minibatch_size=10)
+    sample_from_model(engine=engine, target_path=path1, mean_only=False, image_count=10, minibatch_size=10)
 
     # FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
 

@@ -8,7 +8,7 @@ echo python $(python --version)
 for runId in "${runIds[@]}"; do
   for clip in "${clips[@]}"; do
     sleep 3
-    python ./scripts/fid_score.py $runId $clip
+    python ./scripts/fid_score.py $runId $clip &
     echo $runId
     echo $clip
   done

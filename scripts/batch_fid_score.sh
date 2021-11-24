@@ -10,6 +10,6 @@ for runId in "${runIds[@]}"; do
     python ./scripts/fid_score.py $runId $clip &
     echo $runId
     echo $clip
-    sleep 30
+    sleep 5
   done
 done

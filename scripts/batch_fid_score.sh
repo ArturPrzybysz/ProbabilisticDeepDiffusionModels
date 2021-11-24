@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Declare an array of string with type
-declare -a runIds=("247r7xfl" "2uuhfqn6" "2lwgvbfm" "3f7fs0pc" "3ij6z4aq" "27z5khpa")
+declare -a runIds=("1uk0nbqr" "3q7m01sq" "2uuhfqn6" "247r7xfl" "2d9vlo6q" "2lwgvbfm" "3ij6z4aq" "27z5khpa" "3f7fs0pc")
 declare -a clips=("True" "False")
 
 python --version

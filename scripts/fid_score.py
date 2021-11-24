@@ -59,11 +59,11 @@ def main():
         train=False, pin_memory=True, download=True, **original_cfg["data"]
     )
 
-    path1 = Path("images/sample")
-    path2 = Path("images/dataset")
-    path1.mkdir(exist_ok=True, parents=True)
-    path2.mkdir(exist_ok=True, parents=True)
-    FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
+    # path1 = Path("images/sample")
+    # path2 = Path("images/dataset")
+    # path1.mkdir(exist_ok=True, parents=True)
+    # path2.mkdir(exist_ok=True, parents=True)
+    FID_score = compute_FID_score(engine, dataloader)
     wandb.save()
     print("FID_score", FID_score)
 

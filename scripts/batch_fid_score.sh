@@ -6,7 +6,9 @@ declare -a clips=("True" "False")
 
 for runId in "${runIds[@]}"; do
   for clip in "${clips[@]}"; do
-    sleep 1
+    sleep 3
     python ./scripts/fid_score.py $runId $clip
+    echo $runId
+    echo $clip
   done
 done

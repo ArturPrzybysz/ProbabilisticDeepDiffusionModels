@@ -167,7 +167,7 @@ def free_GPUs():
 
 def wait_and_get_free_GPU_idx():
     i = 0
-    wait_seconds = 1.1
+    wait_seconds = 5
     free_gpus_idx = free_GPUs()
     while not any(free_gpus_idx):
         if i % 10 == 0:

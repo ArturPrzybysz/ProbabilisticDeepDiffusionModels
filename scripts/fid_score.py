@@ -15,7 +15,7 @@ from omegaconf import OmegaConf
 
 from src.datasets.data import get_dataloader
 from src.engine import Engine
-from src.modules.fid_score import compute_FID_score, save_dataloader_to_files
+from src.modules.fid_score import compute_FID_score
 from src.wandb_util import download_file
 import pytorch_lightning as pl
 

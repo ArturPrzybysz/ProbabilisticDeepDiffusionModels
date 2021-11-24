@@ -26,15 +26,15 @@ def init_wandb(run_id):
 
 
 def main():
-    run_id = sys.argv[1:][0]
-
+    run_id = sys.argv[1]
+    clip_while_generating = sys.argv[2] == "True"
     print("run_id", run_id)
     checkpoint_path = download_file(run_id, "model.ckpt")
     init_wandb(run_id)
     logger = pl.loggers.WandbLogger()
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
-    engine.clip_while_generating = True
+    engine.clip_while_generating = clip_while_generating
 
     logger.watch(engine)
 
@@ -48,28 +48,16 @@ def main():
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
     print("original_cfg =", original_cfg)
-    # dataloader = get_dataloader(
-    #     train=False, pin_memory=True, download=True, **original_cfg["data"]
-    # )
+    dataloader = get_dataloader(
+        train=False, pin_memory=True, download=True, **original_cfg["data"]
+    )
 
-    path1 = Path("images/sample")
-    # path2 = Path("images/dataset")
-    path1.mkdir(exist_ok=True, parents=True)
-    # path2.mkdir(exist_ok=True, parents=True)
-    wandb.save()
+    # sample_from_model(engine=engine, target_path=path1, mean_only=False, image_count=100, minibatch_size=50)
 
-    sample_from_model(engine=engine, target_path=path1, mean_only=False, image_count=100, minibatch_size=50)
+    FID_score = compute_FID_score(engine, dataloader)
 
-    # FID_score = compute_FID_score(engine, dataloader, dir_to_save1=path1, dir_to_save2=path2)
-
-    for p in path1.rglob("*.png"):
-        print(p)
-        # wandb.save(p)
-    wandb.save("*.png")
-    wandb.save("images/*.png")
-    wandb.save("images/*/*.png")
-
-    # print("FID_score", FID_score)
+    print("FID_score", FID_score)
+    wandb.log({"FID_score": FID_score})
 
 
 if __name__ == '__main__':

@@ -1,5 +1,12 @@
 import sys
 import os
+
+from src.utils import wait_and_get_free_GPU_idx
+
+free_GPU_idx = wait_and_get_free_GPU_idx()
+os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(free_GPU_idx)
+print(free_GPU_idx)
+
 from pathlib import Path
 
 import torch

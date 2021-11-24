@@ -20,9 +20,9 @@ from src.wandb_util import download_file
 import pytorch_lightning as pl
 
 
-def init_wandb(run_id):
+def init_wandb(run_id, clip_while_generating):
     api = wandb.Api()
-    wandb.init(project="diffusion", entity="ddpm", tags=["FID", run_id])
+    wandb.init(project="diffusion", entity="ddpm", tags=["FID", run_id, str(clip_while_generating)])
     run = api.run(f"ddpm/diffusion/{run_id}")
     run_name = "FID_" + run.name + "-" + wandb.run.name.split("-")[-1]
     wandb.run.name = run_name
@@ -39,7 +39,7 @@ def main():
     print("run_id", run_id)
     print("clip_while_generating", clip_while_generating)
     checkpoint_path = download_file(run_id, "model.ckpt")
-    init_wandb(run_id)
+    init_wandb(run_id, clip_while_generating)
     logger = pl.loggers.WandbLogger()
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
@@ -48,7 +48,7 @@ def main():
 
     if torch.cuda.is_available():
         engine.cuda()
-    print("engine.device =", engine.device)
+    print("!!!!\n\n!!!!\n\n!!!!\n\nengine.device =", engine.device)
 
     cfg_file = os.path.join(wandb.run.dir, "config.yaml")
     wandb.save(cfg_file)

@@ -46,6 +46,7 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, 
                 clip=True,
                 channel_dim=0,
             )
+            print(path / f"{count}.png")
             save_img(img, path / f"{count}.png")
             if count == limit: break
             count += 1

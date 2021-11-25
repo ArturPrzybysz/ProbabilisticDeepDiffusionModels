@@ -55,15 +55,18 @@ def main():
     cfg_path = download_file(run_id, "experiment_config.yaml")
     original_cfg = OmegaConf.load(cfg_path)
     print("original_cfg =", original_cfg)
-    dataloader = get_dataloader(
+    dataloader1 = get_dataloader(
         train=False, pin_memory=True, download=True, **original_cfg["data"]
+    )
+    dataloader2 = get_dataloader(
+        train=True, pin_memory=True, download=True, **original_cfg["data"]
     )
 
     # path1 = Path("images/sample")
     # path2 = Path("images/dataset")
     # path1.mkdir(exist_ok=True, parents=True)
     # path2.mkdir(exist_ok=True, parents=True)
-    FID_score = compute_FID_score(engine, dataloader)
+    FID_score = compute_FID_score(engine, dataloader1, dataloader2)
     wandb.save()
     print("FID_score", FID_score)
 

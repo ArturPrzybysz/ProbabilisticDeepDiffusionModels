@@ -50,6 +50,8 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, 
             save_img(img, path / f"{count}.png")
             if count == limit: break
             count += 1
+        if count == limit: break
+    count = 0
     print("time", time.time() - t1, count)
 
 

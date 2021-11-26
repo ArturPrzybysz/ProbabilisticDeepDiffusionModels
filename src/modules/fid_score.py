@@ -30,15 +30,14 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
 count = 0
 
 
-def save_dataloader_to_files(dataloader: DataLoader, path: Path, lower_limit=0, limit=4096):
+def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=8192):
     print("save_dataloader_to_files")
     import time
     global count
     t1 = time.time()
     for batch in dataloader:
         X = batch[0]
-        for i in tqdm(range(X.shape[0])):
-            if i < lower_limit: continue
+        for i in range(X.shape[0]):
             # img = X[i, :, :, :].detach().cpu().numpy()
             img = unnormalize(
                 X[i].detach().cpu().numpy(),
@@ -68,5 +67,21 @@ def compute_FID_score(engine: Engine, dataloader):
         FID = fid_score.calculate_fid_given_paths((str(dataset_path), str(samples_path)),
                                                   batch_size=64,
                                                   device=engine.device,
+                                                  dims=2048)
+        return FID
+
+
+def compute_FID_score_for_loaders(dataloader1, dataloader2, device):
+    print("compute_FID_score")
+    with TemporaryDirectory() as samples_dir, TemporaryDirectory() as dataset_dir:
+        samples_path = Path(samples_dir)
+        dataset_path = Path(dataset_dir)
+
+        save_dataloader_to_files(dataloader1, dataset_path)
+        save_dataloader_to_files(dataloader2, samples_path)
+
+        FID = fid_score.calculate_fid_given_paths((str(dataset_path), str(samples_path)),
+                                                  batch_size=64,
+                                                  device=device,
                                                   dims=2048)
         return FID

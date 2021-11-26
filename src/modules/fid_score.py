@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from pytorch_fid import fid_score
 
 
-def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_size=128, image_count=2048):
+def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_size=256, image_count=8192):
     print("sample_from_model")
     images = engine.generate_images(n=image_count, minibatch=minibatch_size, mean_only=mean_only)
 
@@ -30,7 +30,7 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
 count = 0
 
 
-def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=8192):
+def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=16384):
     print("save_dataloader_to_files")
     import time
     global count

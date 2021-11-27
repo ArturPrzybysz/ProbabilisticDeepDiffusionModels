@@ -18,7 +18,7 @@ from src.wandb_util import download_file
 
 def init_wandb(run_id, clip_while_generating):
     api = wandb.Api()
-    wandb.init(project="diffusion", entity="ddpm", tags=["FID", run_id, str(clip_while_generating)])
+    wandb.init(project="diffusion", entity="ddpm", dir="/scratch/diffusion/wandb/", tags=["FID", run_id, str(clip_while_generating)])
     run = api.run(f"ddpm/diffusion/{run_id}")
     run_name = "FID_" + run.name + "-" + wandb.run.name.split("-")[-1]
     wandb.run.name = run_name
@@ -42,9 +42,11 @@ def main():
     engine.clip_while_generating = clip_while_generating
     logger.watch(engine)
 
-    free_GPU_idx = wait_and_get_free_GPU_idx()
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(free_GPU_idx)
-    print("The free GPU is:", free_GPU_idx)
+    if not torch.cuda.is_available():
+        free_GPU_idx = wait_and_get_free_GPU_idx()
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(free_GPU_idx)
+        print("The free GPU is:", free_GPU_idx)
+
     if torch.cuda.is_available():
         engine.cuda()
     print("!!!!\n\n!!!!\n\n!!!!\n\nengine.device =", engine.device)

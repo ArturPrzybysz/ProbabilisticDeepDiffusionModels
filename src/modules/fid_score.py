@@ -60,7 +60,7 @@ def compute_FID_score(engine: Engine, dataloader):
         samples_path = Path(samples_dir)
         dataset_path = Path(dataset_dir)
 
-        sample_from_model(engine=engine, target_path=samples_path, mean_only=False, image_count=2048)
+        sample_from_model(engine=engine, target_path=samples_path, mean_only=False, image_count=10000)
         save_dataloader_to_files(dataloader, dataset_path)
         # save_dataloader_to_files(dataloader2, samples_path)
 
@@ -68,6 +68,7 @@ def compute_FID_score(engine: Engine, dataloader):
                                                   batch_size=64,
                                                   device=engine.device,
                                                   dims=2048)
+        wandb.log("FID", FID)
         return FID
 
 

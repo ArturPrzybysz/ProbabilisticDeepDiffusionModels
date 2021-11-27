@@ -23,13 +23,37 @@ from src.utils import mean_flat, get_generator_if_specified, normal_kl, discreti
 import matplotlib.pyplot as plt
 
 
-# TODO: what is this
-def alpha_bar(t):
+def get_linear_alphas_bar(diffusion_steps):
+    betas = get_betas(None, None, diffusion_steps, 'linear')
+    alphas = 1 - betas
+    alphas_sqrt = th.sqrt(alphas)
+    return torch.cumprod(alphas, 0)
+
+
+def cosine_alpha_bar(t):
     return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
 
 
+def betas_for_alpha_bar(alpha_bar, diffusion_steps, max_beta):
+    betas = []
+    for i in range(diffusion_steps):
+        t1 = i / diffusion_steps
+        t2 = (i + 1) / diffusion_steps
+        betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+    return betas
+
+
+def mixed_alpha_bar(diffusion_steps):
+    lin_alphas = get_linear_alphas_bar(diffusion_steps)
+    last_alpha = 2 * lin_alphas[-1] - lin_alphas[-2]
+    lin_alphas = torch.cat([lin_alphas, torch.tensor([1]) * last_alpha])
+    cos_alphas = torch.tensor([cosine_alpha_bar(t / diffusion_steps) for t in range(diffusion_steps + 1)])
+    mixed_alphas = 0.5 * lin_alphas + 0.5 * cos_alphas
+    return mixed_alphas
+
+
 def get_betas(
-        beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999
+        beta_start=None, beta_end=None, diffusion_steps=1000, mode="linear", max_beta=0.999, custom_alpha_bar=None
 ):
     if mode == "linear":
         if beta_start is None or beta_end is None:
@@ -39,12 +63,14 @@ def get_betas(
             beta_end = scale * 0.02
         return torch.linspace(beta_start, beta_end, diffusion_steps)
     elif mode == "cosine":
-        # TODO: what is this
-        betas = []
-        for i in range(diffusion_steps):
-            t1 = i / diffusion_steps
-            t2 = (i + 1) / diffusion_steps
-            betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+        betas = betas_for_alpha_bar(cosine_alpha_bar, diffusion_steps, max_beta)
+        return torch.tensor(betas)
+    elif mode == "mixed":
+        alpha_bar = mixed_alpha_bar(diffusion_steps)
+        betas = betas_for_alpha_bar(lambda t: alpha_bar[int(t * diffusion_steps)], diffusion_steps, max_beta)
+        return torch.tensor(betas)
+    elif mode == "custom":
+        betas = betas_for_alpha_bar(custom_alpha_bar, diffusion_steps, max_beta)
         return torch.tensor(betas)
     else:
         raise ValueError(f"Wrong beta mode: {mode}")
@@ -59,6 +85,7 @@ class Engine(pl.LightningModule):
             beta_start=None,
             beta_end=None,
             mode="linear",
+            max_beta=0.999,
             sigma_mode="beta",
             resolution=32,
             clip_while_generating=False,
@@ -91,7 +118,7 @@ class Engine(pl.LightningModule):
         self.resolution = resolution
 
         self.sigma_mode = sigma_mode
-        self.betas = get_betas(beta_start, beta_end, diffusion_steps, mode).to(
+        self.betas = get_betas(beta_start, beta_end, diffusion_steps, mode, max_beta=max_beta).to(
             self.device
         )
         self.alphas = 1 - self.betas
@@ -188,7 +215,7 @@ class Engine(pl.LightningModule):
         self.loss_per_t_epoch.reset()
 
     def optimizer_step(self, *args, **kwargs):
-        self._log_grad_norm()
+        # self._log_grad_norm()
         super().optimizer_step(*args, **kwargs)
         if self.ema:
             # self.ema.to(self.device)

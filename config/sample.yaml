@@ -4,7 +4,7 @@ hydra:
     # Output directory for normal runs
     dir: ./
 use_train: false
-clip_while_generating: false
+clip_while_generating: true
 regular_viz: true
 detailed_viz: false
 use_ema: true

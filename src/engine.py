@@ -98,7 +98,7 @@ class Engine(pl.LightningModule):
         self.save_hyperparameters()  # ??
 
         self.clip_while_generating = clip_while_generating
-
+        print("self.clip_while_generating", self.clip_while_generating)
         # create the model here
         self.model = get_model(resolution, dict(model_config))
 
@@ -111,8 +111,8 @@ class Engine(pl.LightningModule):
             self.ema.set(self.model)
         else:
             self.ema = None
-
-        print(self.model)
+        print("self.ema", self.ema)
+        # print(self.model)
         self.optimizer_config = optimizer_config
         self.diffusion_steps = diffusion_steps
         self.resolution = resolution
@@ -129,7 +129,6 @@ class Engine(pl.LightningModule):
         self.alphas_hat_sqrt = torch.sqrt(self.alphas_hat)
         self.one_min_alphas_hat_sqrt = torch.sqrt(1 - self.alphas_hat)
 
-
         self.alphas_hat_prev = torch.Tensor(np.append(1.0, self.alphas_hat[:-1].numpy()))
         self.alphas_hat_next = torch.Tensor(np.append(self.alphas_hat[1:].numpy(), 0.0))
         self.posterior_variance = (
@@ -140,12 +139,12 @@ class Engine(pl.LightningModule):
         self.sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / self.alphas_hat - 1)
 
         self.posterior_mean_coef1 = (
-            self.betas * torch.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
+                self.betas * torch.sqrt(self.alphas_hat_prev) / (1.0 - self.alphas_hat)
         )
         self.posterior_mean_coef2 = (
-            (1.0 - self.alphas_hat_prev)
-            * self.alphas_sqrt
-            / (1.0 - self.alphas_hat)
+                (1.0 - self.alphas_hat_prev)
+                * self.alphas_sqrt
+                / (1.0 - self.alphas_hat)
         )
 
         self.denoising_coef = (self.betas / self.one_min_alphas_hat_sqrt)
@@ -191,7 +190,7 @@ class Engine(pl.LightningModule):
         # log loss per Q
         for i in range(4):
             self.log(
-                f"loss_q{i+1}",
+                f"loss_q{i + 1}",
                 self.loss_per_t_epoch.get_avg_in_range(
                     max(1, int(i * self.diffusion_steps / 4)),
                     int((i + 1) * self.diffusion_steps / 4),
@@ -262,7 +261,7 @@ class Engine(pl.LightningModule):
         return mean + noise * std
 
     def get_loss(
-            self, predicted_noise, target_noise,  x, x_t, t, weights=None, update_loss_log=True
+            self, predicted_noise, target_noise, x, x_t, t, weights=None, update_loss_log=True
     ):
         loss = mean_flat(torch.square(target_noise - predicted_noise))
         if update_loss_log:
@@ -330,9 +329,6 @@ class Engine(pl.LightningModule):
         else:
             self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
-
-
-
     def compute_grad_norm(self, parameters, norm_type=2):
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
@@ -364,10 +360,9 @@ class Engine(pl.LightningModule):
         else:
             raise ValueError(f"Wrong sigma mode: {self.sigma_mode}")
 
-
     def xstart_from_epsilon(self, x_t, t, epsilon, clip=False):
-        x = self.sqrt_recip_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * x_t \
-            - self.sqrt_recipm1_alphas_cumprod[t-1].view((-1, 1, 1, 1)).to(self.device) * epsilon
+        x = self.sqrt_recip_alphas_cumprod[t - 1].view((-1, 1, 1, 1)).to(self.device) * x_t \
+            - self.sqrt_recipm1_alphas_cumprod[t - 1].view((-1, 1, 1, 1)).to(self.device) * epsilon
         if clip:
             x = x.clamp(-1, 1)
         return x
@@ -381,10 +376,9 @@ class Engine(pl.LightningModule):
         if clip:
             return self.model_mean_through_start(x_t, t, epsilon, clip=True)
         else:
-            denoising_coef = self.denoising_coef[t-1].view((-1, 1, 1, 1)).to(self.device)
-            alphas_sqrt = self.alphas_sqrt[t-1].view((-1, 1, 1, 1)).to(self.device)
+            denoising_coef = self.denoising_coef[t - 1].view((-1, 1, 1, 1)).to(self.device)
+            alphas_sqrt = self.alphas_sqrt[t - 1].view((-1, 1, 1, 1)).to(self.device)
             return (x_t - epsilon * denoising_coef) / alphas_sqrt
-
 
     # ------------ Sampling and generation utils ----------
 
@@ -404,6 +398,7 @@ class Engine(pl.LightningModule):
 
     def sample_from_step(self, x_t, t_start, mean_only=False, generator=None):
         for t in range(t_start, 0, -1):
+            # print("t", t)
             x_t = self.denoising_step(x_t, t, mean_only=mean_only, generator=generator)
         return x_t
 
@@ -469,7 +464,7 @@ class Engine(pl.LightningModule):
             logvar_1 = th.log(var_t) * th.ones_like(mean_t)
             logvar_2 = predicted_logvar * th.ones_like(mean_t)
             kl = normal_kl(mean1=mean_t, logvar1=logvar_1,
-                            mean2=predicted_mean, logvar2=logvar_2)
+                           mean2=predicted_mean, logvar2=logvar_2)
             L_i = mean_flat(kl) / np.log(2.0)
 
             L_intermediate_list.append(L_i)
@@ -499,7 +494,7 @@ class Engine(pl.LightningModule):
         reconstruction likelihood: -log(p(x_0 | x_1))
         """
         t_step = 1
-        t =th.ones(x.shape[0], dtype=th.int64, device=self.device)
+        t = th.ones(x.shape[0], dtype=th.int64, device=self.device)
         noise = torch.randn_like(x)
         x_t = self.get_q_t(x, noise, t)
 
@@ -561,12 +556,13 @@ class Engine(pl.LightningModule):
     @torch.no_grad()
     def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None):
         self.eval()
+        print("generate_images", "n", n, "minibatch", minibatch, "mean_only", mean_only)
         generator = get_generator_if_specified(seed, device=self.device)
         images = []
 
         for i in range(np.ceil(n / minibatch).astype(int)):
             x_t = torch.randn(
-                (n, self.model.in_channels, self.resolution, self.resolution),
+                (minibatch, self.model.in_channels, self.resolution, self.resolution),
                 generator=generator,
                 device=self.device,
             )
@@ -575,7 +571,6 @@ class Engine(pl.LightningModule):
                 x_t, self.diffusion_steps, mean_only=mean_only, generator=generator
             )
             images.append(x_t.detach().cpu().numpy())
-
         return np.concatenate(images, axis=0)
 
     @torch.no_grad()

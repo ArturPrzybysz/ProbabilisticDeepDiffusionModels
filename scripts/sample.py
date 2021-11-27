@@ -26,6 +26,7 @@ def init_wandb(cfg):
     wandb.run.name = run_name
     wandb.run.save()
 
+
 @hydra.main(config_path="../config", config_name="sample")
 def sample(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
@@ -99,6 +100,7 @@ def sample(cfg: DictConfig):
     if cfg["detailed_viz"]:
         run_detailed_viz(engine, vis, prefix)
 
+
 def run_detailed_viz(engine, vis, prefix):
     for t0 in [
         engine.diffusion_steps,
@@ -107,9 +109,9 @@ def run_detailed_viz(engine, vis, prefix):
         int(engine.diffusion_steps / 2),
     ]:
         ts = (
-            [t0 - i for i in range(7)]
-            + [t0 - i * 10 for i in range(1, 6)]
-            + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]
+                [t0 - i for i in range(7)]
+                + [t0 - i * 10 for i in range(1, 6)]
+                + [int(t0 / 10), int(t0 / 5), int(t0 / 2)]
         )
         ts = [t for t in sorted(set(ts)) if t > 0]
         print(ts)
@@ -143,6 +145,7 @@ def run_detailed_viz(engine, vis, prefix):
             )
         )
         wandb.log({f"recon_{t0}": images})
+
 
 if __name__ == "__main__":
     sample()

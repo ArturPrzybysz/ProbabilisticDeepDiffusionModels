@@ -30,7 +30,7 @@ NORMALIZATIONS = {
 
 def get_dataloader(
     name,
-    batch_size=128,
+    batch_size=512,
     download=False,
     train=True,
     num_workers=4,

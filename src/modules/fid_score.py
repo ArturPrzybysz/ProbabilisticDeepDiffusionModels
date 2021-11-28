@@ -20,8 +20,6 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
         img = unnormalize(
             images[i], normalize=None, clip=True, channel_dim=0
         )
-        print(img.shape)
-        print(img)
         save_img(img, target_path / f"{i}.png")
         # images = wandb.Image(img, caption=f"{i}.png")
         wandb.log({"images": images})

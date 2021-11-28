@@ -554,13 +554,17 @@ class Engine(pl.LightningModule):
         return output
 
     @torch.no_grad()
-    def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None):
+    def generate_images(self, n=1, minibatch=4, mean_only=False, seed=None, pbar=False):
         self.eval()
         print("generate_images", "n", n, "minibatch", minibatch, "mean_only", mean_only)
         generator = get_generator_if_specified(seed, device=self.device)
         images = []
 
-        for i in range(np.ceil(n / minibatch).astype(int)):
+        it = range(np.ceil(n / minibatch).astype(int))
+        if pbar:
+            it = tqdm(it)
+
+        for i in it:
             x_t = torch.randn(
                 (minibatch, self.model.in_channels, self.resolution, self.resolution),
                 generator=generator,

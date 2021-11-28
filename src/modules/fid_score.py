@@ -45,7 +45,6 @@ def save_dataloader_to_files(dataloader: DataLoader, path: Path, limit=16384):
                 clip=True,
                 channel_dim=0,
             )
-            print(path / f"{count}.png")
             save_img(img, path / f"{count}.png")
             if count == limit: break
             count += 1
@@ -68,7 +67,7 @@ def compute_FID_score(engine: Engine, dataloader):
                                                   batch_size=64,
                                                   device=engine.device,
                                                   dims=2048)
-        wandb.log("FID", FID)
+        wandb.log({"FID": FID})
         return FID
 
 

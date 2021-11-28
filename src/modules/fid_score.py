@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory
 
 from pytorch_fid import fid_score
 
+import matplotlib.pyplot as plt
 
 def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_size=256, image_count=8192):
     print("sample_from_model")
@@ -21,8 +22,10 @@ def sample_from_model(engine: Engine, target_path: Path, mean_only, minibatch_si
             images[i], normalize=None, clip=True, channel_dim=0
         )
         save_img(img, target_path / f"{i}.png")
-        # images = wandb.Image(img, caption=f"{i}.png")
-        wandb.log({"images": images})
+        if i < 50:
+            im = plt.imread(target_path / f"{i}.png")
+            wandb_images = wandb.Image(im, caption=f"{i}.png")
+            wandb.log({"images": wandb_images})
 
 
 count = 0

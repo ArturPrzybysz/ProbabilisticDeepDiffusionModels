@@ -4,6 +4,6 @@ optimizer_config:
 diffusion_steps: 1000
 beta_start: null
 beta_end: null
-clip_while_generating: false
+clip_while_generating: true
 sigma_mode: beta
 mode: linear

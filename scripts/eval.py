@@ -11,6 +11,7 @@ import wandb
 import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning import seed_everything
 
 from src.datasets.data import get_dataloader
 from src.engine import Engine
@@ -40,6 +41,8 @@ def run_training(cfg: DictConfig, model_path=None):
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
     wandb.config.update(cfg)
+
+    seed_everything(cfg["seed"])
 
     engine = Engine.load_from_checkpoint(checkpoint_path)
     dataloader_train = get_dataloader(
